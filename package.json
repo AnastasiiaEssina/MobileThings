@@ -5,7 +5,8 @@
   "private": true,
   "dependencies": {
     "@nativescript/core": "~8.9.1",
-    "nativescript-vue": "3.0.2"
+    "nativescript-vue": "3.0.2",
+    "vue": "^3.x"
   },
   "devDependencies": {
     "@nativescript/tailwind": "~4.0.3",
