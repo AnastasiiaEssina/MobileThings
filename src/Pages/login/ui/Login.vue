@@ -24,8 +24,13 @@
               class="input"
             />
 
-            <Button text="Подтвердить" class="primary-button" @tap="onConfirm" />
-
+            <Button
+              text="Подтвердить"
+              class="primary-button"
+              :isEnabled="!snapshot.matches('loading')"
+              @tap="onConfirm"
+              />
+              
             <GridLayout columns="auto, auto" class="login-row">
               <Label text="Уже есть профиль?" class="login-text" col="0" />
               <Label text="Зайти" class="login-link" col="1" @tap="onLogin" />
@@ -47,21 +52,21 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { COLORS } from '../../../Shared/ui/Colors';
+import { useMachine } from '@xstate/vue';
+import { loginMachine } from '../model/LoginMachine';
+import {COLORS} from "../../../Shared/ui/Colors"
 
 const email = ref('');
 const password = ref('');
 
+const { snapshot, send } = useMachine(loginMachine);
+
 function onConfirm() {
-  console.log('confirm', email.value, password.value);
-}
-
-function onLogin() {
-  console.log('go to login');
-}
-
-function onSkip() {
-  console.log('continue without registration');
+  send({
+    type: 'SUBMIT',
+    email: email.value,
+    password: password.value
+  });
 }
 </script>
 
