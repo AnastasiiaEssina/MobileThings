@@ -1,6 +1,6 @@
 {
   "name": "MobileThings",
-  "main": "src/app.ts",
+  "main": "src/App/ui/app.ts",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
@@ -11,6 +11,7 @@
     "xstate": "^5.30.0"
   },
   "devDependencies": {
+    "@nativescript/android": "9.0.2",
     "@nativescript/tailwind": "~4.0.3",
     "@nativescript/types": "~8.9.1",
     "@nativescript/webpack": "~5.0.24",

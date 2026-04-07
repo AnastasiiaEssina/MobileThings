@@ -3,6 +3,7 @@ import {useMachine} from '@xstate/vue';
 import { AppMachine } from './AppMachine.ts';
 import Login from '../../Pages/login/ui/Login.vue';
 import Details from '../../Pages/login/ui/Details.vue';
+import MyOutfits from '../../Pages/MyOutfits/ui/MyOutfits.vue';
 
 export default {
   name: 'AppView',
@@ -18,6 +19,6 @@ export default {
 </script>
 
 <template>
-  <Login v-if="snapshot.matches('login')" />
-  <Details v-else-if="snapshot.matches('home')" />
+  <MyOutfits v-if="snapshot.matches('login')" />
+  <MyOutfits v-else-if="snapshot.matches('home')" />
 </template>
