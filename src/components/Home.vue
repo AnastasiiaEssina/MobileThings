@@ -32,7 +32,7 @@
               />
               
             <GridLayout columns="auto, auto" class="login-row">
-              <Label text="Уже есть профиль?" class="login-text" col="0" />
+              <Label text="Уже есть профиль???" class="login-text" col="0" />
               <Label text="Зайти" class="login-link" col="1" @tap="onLogin" />
             </GridLayout>
           </StackLayout>
@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import {ref} from 'vue';
 import { useMachine } from '@xstate/vue';
 import { loginMachine } from '../model/LoginMachine';
 import {COLORS} from "../../../Shared/ui/Colors"
@@ -68,6 +68,16 @@ function onConfirm() {
     password: password.value
   });
 }
+function onSkip() {
+  console.log("Skip")
+  send({
+    type: 'SKIP'
+  });
+}
+function onLogin(){
+  console.log("Login")
+}
+
 </script>
 
 <style scoped lang="scss">
