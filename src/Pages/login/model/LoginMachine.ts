@@ -9,7 +9,8 @@ type Context = {
 
 type Events =
   | { type: 'SUBMIT'; email: string; password: string }
-  | { type: 'RETRY' };
+  | { type: 'RETRY' }
+  | { type: 'SKIP'};
   
 type SubmitInput = {
   email: string;
@@ -38,6 +39,9 @@ export const loginMachine = createMachine({
             email: (_, e: any) => e.email,
             password: (_, e: any) => e.password
           })
+        },
+        SKIP: {
+          target: 'success'
         }
       }
     },
