@@ -1,5 +1,5 @@
 // src/Pages/MyOutfits/model/Machine.ts
-import { Outfit, FilterState } from '~/Shared/model/FilterTypes';
+import { Outfit, FilterState } from '../../../Shared/model/FilterTypes';
 import { createMachine, assign } from 'xstate';
 
 interface OutfitsContext {

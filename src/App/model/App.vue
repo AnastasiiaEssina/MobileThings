@@ -9,7 +9,8 @@ export default {
   name: 'AppView',
   components: {
     Login,
-    Details
+    Details,
+    MyOutfits
   },
   setup() {
     const { snapshot, send } = useMachine(AppMachine);
