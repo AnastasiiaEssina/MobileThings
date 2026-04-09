@@ -51,15 +51,26 @@
 </template>
 
 <script setup lang="ts">
-import {ref} from 'vue';
+import {ref, watch} from 'vue';
 import { useMachine } from '@xstate/vue';
 import { loginMachine } from '../model/LoginMachine';
+import { $navigateTo } from 'nativescript-vue';
 import {COLORS} from "../../../Shared/ui/Colors"
+import MyOutfits from '../../../Pages/MyOutfits/ui/MyOutfits.vue';
 
 const email = ref('');
 const password = ref('');
 
 const { snapshot, send } = useMachine(loginMachine);
+
+watch(
+  () => snapshot.value,
+  (snapshot) => {
+    if (snapshot.matches('success')) {
+      $navigateTo(MyOutfits, { clearHistory: true });
+    }
+  }
+);
 
 function onConfirm() {
   send({

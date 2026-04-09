@@ -1,0 +1,75 @@
+.page {
+  background-color: #f5efe6;
+}
+
+/* Заголовок */
+.header {
+  padding: 16;
+  align-items: center;
+}
+
+.title {
+  font-size: 22;
+  color: #6b3f3f;
+  font-weight: bold;
+}
+
+/* Кнопка + */
+.add-container {
+  padding: 10 16;
+}
+
+.add-button {
+  background-color: #9aa7a1;
+  color: #6b3f3f;
+  border-radius: 20;
+  height: 40;
+  font-size: 20;
+}
+
+/* Фильтры */
+.filters {
+  padding: 10 16;
+}
+
+.filter-label {
+  font-size: 12;
+  color: #6b3f3f;
+}
+
+.picker {
+  background-color: #9aa7a1;
+  border-radius: 16;
+  color: #6b3f3f;
+}
+
+/* Карточки */
+.grid {
+  padding: 10;
+}
+
+.card {
+  width: 47%;
+  margin: 1.5%;
+  background: white;
+  border-radius: 12;
+  overflow: hidden;
+}
+
+.image {
+  height: 150;
+}
+
+/* Нижняя навигация */
+.bottom-nav {
+  background-color: #f5efe6;
+  padding: 10;
+  border-top-width: 1;
+  border-color: #ddd;
+}
+
+.nav-icon {
+  text-align: center;
+  font-size: 20;
+  color: #6b3f3f;
+}
