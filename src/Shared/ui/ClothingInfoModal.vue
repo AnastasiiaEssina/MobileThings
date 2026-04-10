@@ -58,8 +58,8 @@
         </StackLayout>
 
         <Label
-          v-if="!canDelete"
-          text="Удаление недоступно, пока вещь входит в один или несколько образов."
+          v-if="deleteHint"
+          :text="deleteHint"
           class="delete-hint"
           :color="COLORS.profileText"
         />
@@ -135,7 +135,19 @@ const colorPickerItems = COLOR_SCHEME_VALUES.map((value) => COLOR_SCHEME_LABELS[
 const categoryIndex = computed(() => CLOTHING_CATEGORY_VALUES.indexOf(draftCategory.value));
 const seasonIndex = computed(() => SEASON_VALUES.indexOf(draftSeason.value));
 const colorIndex = computed(() => COLOR_SCHEME_VALUES.indexOf(draftColorScheme.value));
-const canDelete = computed(() => props.relatedOutfits.length === 0);
+const isStandardClothing = computed(() => props.clothing?.source === 'standard');
+const canDelete = computed(() => !isStandardClothing.value && props.relatedOutfits.length === 0);
+const deleteHint = computed(() => {
+  if (isStandardClothing.value) {
+    return 'Базовые вещи из каталога не удаляются.';
+  }
+
+  if (props.relatedOutfits.length > 0) {
+    return 'Удаление недоступно, пока вещь входит в один или несколько образов.';
+  }
+
+  return '';
+});
 
 watch(
   () => props.clothing,

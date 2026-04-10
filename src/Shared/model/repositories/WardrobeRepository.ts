@@ -14,6 +14,7 @@ interface ClothingRow extends SqliteRow {
   category: string;
   season: string;
   color_scheme: string;
+  source: 'user' | 'standard';
   image_url?: string | null;
   emoji?: string | null;
   fill_color?: string | null;
@@ -48,6 +49,7 @@ function toClothing(row: ClothingRow): Clothing {
     category: row.category as Clothing['category'],
     season: row.season as Clothing['season'],
     colorScheme: row.color_scheme as Clothing['colorScheme'],
+    source: row.source,
     imageUrl: row.image_url ? String(row.image_url) : undefined,
     emoji: row.emoji ? String(row.emoji) : undefined,
     fillColor: row.fill_color ? String(row.fill_color) : undefined,
@@ -80,7 +82,7 @@ export async function getMyClothes() {
   const db = await getWardrobeDatabase();
   const rows = await db.select(
     `
-      SELECT id, name, category, season, color_scheme, image_url, emoji, fill_color
+      SELECT id, name, category, season, color_scheme, source, image_url, emoji, fill_color
       FROM clothes
       WHERE is_deleted = 0 AND is_in_wardrobe = 1
       ORDER BY sort_order ASC
@@ -94,7 +96,7 @@ export async function getStandardClothes() {
   const db = await getWardrobeDatabase();
   const rows = await db.select(
     `
-      SELECT id, name, category, season, color_scheme, image_url, emoji, fill_color
+      SELECT id, name, category, season, color_scheme, source, image_url, emoji, fill_color
       FROM clothes
       WHERE is_deleted = 0 AND source = 'standard'
       ORDER BY sort_order ASC
@@ -315,6 +317,19 @@ export async function updateClothing(clothingId: string, patch: ClothingUpdateIn
 export async function deleteClothing(clothingId: string) {
   const db = await getWardrobeDatabase();
   const now = new Date().toISOString();
+  const clothingRow = await db.get(
+    `
+      SELECT source
+      FROM clothes
+      WHERE id = ?
+    `,
+    [clothingId]
+  );
+
+  if (String(clothingRow?.source ?? '') === 'standard') {
+    throw new Error('Нельзя удалить базовую вещь из каталога.');
+  }
+
   const usageRow = await db.get(
     `
       SELECT COUNT(*) AS count
@@ -330,70 +345,20 @@ export async function deleteClothing(clothingId: string) {
     throw new Error('Нельзя удалить вещь, пока она входит в образ.');
   }
 
-  await db.transaction(async () => {
-    await db.execute(
-      `
-        UPDATE clothes
-        SET is_deleted = CASE WHEN source = 'standard' THEN is_deleted ELSE 1 END,
-            is_in_wardrobe = 0,
-            updated_at = ?,
-            sync_status = CASE
-              WHEN sync_status = 'synced' THEN 'pending'
-              ELSE sync_status
-            END
-        WHERE id = ?
-      `,
-      [now, clothingId]
-    );
-
-    await db.execute(
-      `
-        UPDATE outfit_items
-        SET updated_at = ?,
-            sync_status = CASE
-              WHEN sync_status = 'synced' THEN 'pending'
-              ELSE sync_status
-            END
-        WHERE clothing_id = ?
-      `,
-      [now, clothingId]
-    );
-
-    await db.execute(
-      `
-        DELETE FROM outfit_items
-        WHERE clothing_id = ?
-      `,
-      [clothingId]
-    );
-
-    const emptyOutfits = await db.select(
-      `
-        SELECT outfits.id
-        FROM outfits
-        LEFT JOIN outfit_items ON outfit_items.outfit_id = outfits.id
-        WHERE outfits.is_deleted = 0
-        GROUP BY outfits.id
-        HAVING COUNT(outfit_items.id) = 0
-      `
-    );
-
-    for (const row of emptyOutfits as Array<{ id: string }>) {
-      await db.execute(
-        `
-          UPDATE outfits
-          SET is_deleted = 1,
-              updated_at = ?,
-              sync_status = CASE
-                WHEN sync_status = 'synced' THEN 'pending'
-                ELSE sync_status
-              END
-          WHERE id = ?
-        `,
-        [now, row.id]
-      );
-    }
-  });
+  await db.execute(
+    `
+      UPDATE clothes
+      SET is_deleted = 1,
+          is_in_wardrobe = 0,
+          updated_at = ?,
+          sync_status = CASE
+            WHEN sync_status = 'synced' THEN 'pending'
+            ELSE sync_status
+          END
+      WHERE id = ?
+    `,
+    [now, clothingId]
+  );
 }
 
 export async function getUserSettings() {

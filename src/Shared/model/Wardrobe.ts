@@ -46,6 +46,7 @@ export interface Clothing {
   category: ClothingCategory;
   season: Season;
   colorScheme: ColorScheme;
+  source?: 'user' | 'standard';
   imageUrl?: string;
   emoji?: string;
   fillColor?: string;

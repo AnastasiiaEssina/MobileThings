@@ -90,6 +90,26 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     return initializationPromise;
   }
 
+  const allClothes = computed(() => {
+    const uniqueById = new Map<string, Clothing>();
+
+    for (const item of [...standardClothes.value, ...myClothes.value]) {
+      uniqueById.set(item.id, item);
+    }
+
+    return [...uniqueById.values()];
+  });
+
+  function getClothingById(clothingId: string) {
+    return allClothes.value.find((item) => item.id === clothingId);
+  }
+
+  function getOutfitItems(outfit: Outfit) {
+    return outfit.items
+      .map((itemId) => getClothingById(itemId))
+      .filter((item): item is Clothing => Boolean(item));
+  }
+
   async function addClothingToMyWardrobe(clothingId: string) {
     await initialize();
     await addClothingToMyWardrobeInRepository(clothingId);
@@ -99,9 +119,8 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
   async function createOutfitFromSelection(itemIds: string[]) {
     await initialize();
 
-    const allKnownClothes = [...myClothes.value, ...standardClothes.value];
     const selectedItems = itemIds
-      .map((id) => allKnownClothes.find((item) => item.id === id))
+      .map((id) => getClothingById(id))
       .filter((item): item is Clothing => Boolean(item));
 
     if (!selectedItems.length) {
@@ -112,7 +131,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     const input = {
       id: `outfit-${Date.now()}`,
       name: `Образ ${outfits.value.length + 1}`,
-      imageUrl: firstItem.imageUrl ?? '~/assets/outfit_1.png',
+      imageUrl: firstItem.imageUrl ?? '~/assets/baseClothes/white_tshirt.jpg',
       items: selectedItems.map((item) => item.id),
       style: 'casual' as const,
       season: firstItem.season,
@@ -131,7 +150,12 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
   async function updateOutfit(
     outfitId: string,
-    patch: { name: string; style: Outfit['style']; season: Outfit['season']; colorScheme: Outfit['colorScheme'] }
+    patch: {
+      name: string;
+      style: Outfit['style'];
+      season: Outfit['season'];
+      colorScheme: Outfit['colorScheme'];
+    }
   ) {
     await initialize();
     await updateOutfitInRepository(outfitId, patch);
@@ -160,7 +184,13 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
   async function deleteClothing(clothingId: string) {
     await initialize();
+
+    const clothing = getClothingById(clothingId);
     const isUsedInOutfits = outfits.value.some((outfit) => outfit.items.includes(clothingId));
+
+    if (clothing?.source === 'standard') {
+      throw new Error('Нельзя удалить базовую вещь из каталога.');
+    }
 
     if (isUsedInOutfits) {
       throw new Error('Нельзя удалить вещь, пока она входит в образ.');
@@ -168,26 +198,6 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
     await deleteClothingInRepository(clothingId);
     await Promise.all([refreshClothes(), refreshOutfits()]);
-  }
-
-  const allClothes = computed(() => {
-    const uniqueById = new Map<string, Clothing>();
-
-    for (const item of [...standardClothes.value, ...myClothes.value]) {
-      uniqueById.set(item.id, item);
-    }
-
-    return [...uniqueById.values()];
-  });
-
-  function getClothingById(clothingId: string) {
-    return allClothes.value.find((item) => item.id === clothingId);
-  }
-
-  function getOutfitItems(outfit: Outfit) {
-    return outfit.items
-      .map((itemId) => getClothingById(itemId))
-      .filter((item): item is Clothing => Boolean(item));
   }
 
   return {

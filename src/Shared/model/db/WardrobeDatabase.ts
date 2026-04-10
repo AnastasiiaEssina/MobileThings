@@ -1,9 +1,11 @@
 import { knownFolders, path } from '@nativescript/core';
 import { openOrCreate, type SQLiteDatabase } from '@nativescript-community/sqlite';
 import { CLOTHES, OUTFITS, STANDARD_CLOTHES } from '../WardrobeData';
+import type { Clothing, Outfit } from '../Wardrobe';
 
 const DATABASE_FILE_NAME = 'mobile-things.sqlite';
 const DEFAULT_SETTINGS_ID = 'default';
+const CURRENT_DB_VERSION = 3;
 
 let databaseInstance: SQLiteDatabase | null = null;
 let initializationPromise: Promise<SQLiteDatabase> | null = null;
@@ -86,31 +88,64 @@ async function getCount(db: SQLiteDatabase, tableName: string) {
   return Number(row?.count ?? 0);
 }
 
-async function seedClothes(db: SQLiteDatabase) {
-  const count = await getCount(db, 'clothes');
-
-  if (count > 0) {
-    return;
-  }
-
+async function upsertClothingSeedItems(
+  db: SQLiteDatabase,
+  items: Clothing[],
+  source: 'user' | 'standard',
+  forceInWardrobe: number
+) {
   const nowIso = getNowIso();
-  const initialClothes = [
-    ...CLOTHES.map((item, index) => ({
-      ...item,
-      source: 'user',
-      isInWardrobe: 1,
-      sortOrder: index,
-    })),
-    ...STANDARD_CLOTHES.map((item, index) => ({
-      ...item,
-      source: 'standard',
-      isInWardrobe: 0,
-      sortOrder: CLOTHES.length + index,
-    })),
-  ];
 
-  await db.transaction(async () => {
-    for (const item of initialClothes) {
+  for (const [index, item] of items.entries()) {
+    const existingRow = await db.get(
+      `
+        SELECT created_at, is_in_wardrobe
+        FROM clothes
+        WHERE id = ?
+      `,
+      [item.id]
+    );
+
+    const createdAt = String(existingRow?.created_at ?? nowIso);
+    const isInWardrobe =
+      source === 'standard'
+        ? Number(existingRow?.is_in_wardrobe ?? 0)
+        : forceInWardrobe;
+
+    if (existingRow) {
+      await db.execute(
+        `
+          UPDATE clothes
+          SET name = ?,
+              category = ?,
+              season = ?,
+              color_scheme = ?,
+              image_url = ?,
+              emoji = ?,
+              fill_color = ?,
+              source = ?,
+              is_in_wardrobe = ?,
+              is_deleted = 0,
+              sort_order = ?,
+              updated_at = ?
+          WHERE id = ?
+        `,
+        [
+          item.name,
+          item.category,
+          item.season,
+          item.colorScheme,
+          item.imageUrl ?? null,
+          item.emoji ?? null,
+          item.fillColor ?? null,
+          source,
+          isInWardrobe,
+          index,
+          nowIso,
+          item.id,
+        ]
+      );
+    } else {
       await db.execute(
         `
           INSERT INTO clothes (
@@ -143,28 +178,60 @@ async function seedClothes(db: SQLiteDatabase) {
           item.imageUrl ?? null,
           item.emoji ?? null,
           item.fillColor ?? null,
-          item.source,
-          item.isInWardrobe,
-          item.sortOrder,
-          nowIso,
+          source,
+          isInWardrobe,
+          index,
+          createdAt,
           nowIso,
         ]
       );
     }
-  });
+  }
 }
 
-async function seedOutfits(db: SQLiteDatabase) {
-  const count = await getCount(db, 'outfits');
-
-  if (count > 0) {
-    return;
-  }
-
+async function replaceDefaultOutfits(db: SQLiteDatabase, outfits: Outfit[]) {
   const nowIso = getNowIso();
 
-  await db.transaction(async () => {
-    for (const [outfitIndex, outfit] of OUTFITS.entries()) {
+  for (const [index, outfit] of outfits.entries()) {
+    const existingRow = await db.get(
+      `
+        SELECT created_at
+        FROM outfits
+        WHERE id = ?
+      `,
+      [outfit.id]
+    );
+
+    const createdAt = String(existingRow?.created_at ?? nowIso);
+
+    if (existingRow) {
+      await db.execute(
+        `
+          UPDATE outfits
+          SET name = ?,
+              style = ?,
+              season = ?,
+              color_scheme = ?,
+              image_url = ?,
+              views = ?,
+              is_deleted = 0,
+              sort_order = ?,
+              updated_at = ?
+          WHERE id = ?
+        `,
+        [
+          outfit.name,
+          outfit.style,
+          outfit.season,
+          outfit.colorScheme,
+          outfit.imageUrl,
+          outfit.views,
+          index,
+          nowIso,
+          outfit.id,
+        ]
+      );
+    } else {
       await db.execute(
         `
           INSERT INTO outfits (
@@ -193,38 +260,54 @@ async function seedOutfits(db: SQLiteDatabase) {
           outfit.colorScheme,
           outfit.imageUrl,
           outfit.views,
-          outfitIndex,
-          nowIso,
+          index,
+          createdAt,
           nowIso,
         ]
       );
-
-      for (const [itemIndex, clothingId] of outfit.items.entries()) {
-        await db.execute(
-          `
-            INSERT INTO outfit_items (
-              id,
-              outfit_id,
-              clothing_id,
-              sort_order,
-              sync_status,
-              created_at,
-              updated_at
-            )
-            VALUES (?, ?, ?, ?, 'synced', ?, ?)
-          `,
-          [
-            `${outfit.id}:${clothingId}:${itemIndex}`,
-            outfit.id,
-            clothingId,
-            itemIndex,
-            nowIso,
-            nowIso,
-          ]
-        );
-      }
     }
-  });
+
+    await db.execute('DELETE FROM outfit_items WHERE outfit_id = ?', [outfit.id]);
+
+    for (const [itemIndex, clothingId] of outfit.items.entries()) {
+      await db.execute(
+        `
+          INSERT INTO outfit_items (
+            id,
+            outfit_id,
+            clothing_id,
+            sort_order,
+            sync_status,
+            created_at,
+            updated_at
+          )
+          VALUES (?, ?, ?, ?, 'synced', ?, ?)
+        `,
+        [`${outfit.id}:${clothingId}:${itemIndex}`, outfit.id, clothingId, itemIndex, createdAt, nowIso]
+      );
+    }
+  }
+}
+
+async function seedClothes(db: SQLiteDatabase) {
+  const count = await getCount(db, 'clothes');
+
+  if (count > 0) {
+    return;
+  }
+
+  await upsertClothingSeedItems(db, CLOTHES, 'user', 1);
+  await upsertClothingSeedItems(db, STANDARD_CLOTHES, 'standard', 0);
+}
+
+async function seedOutfits(db: SQLiteDatabase) {
+  const count = await getCount(db, 'outfits');
+
+  if (count > 0) {
+    return;
+  }
+
+  await replaceDefaultOutfits(db, OUTFITS);
 }
 
 async function seedSettings(db: SQLiteDatabase) {
@@ -256,6 +339,14 @@ async function seedDatabase(db: SQLiteDatabase) {
   await seedSettings(db);
 }
 
+async function migrateSeedCatalog(db: SQLiteDatabase) {
+  await db.transaction(async () => {
+    await upsertClothingSeedItems(db, CLOTHES, 'user', 1);
+    await upsertClothingSeedItems(db, STANDARD_CLOTHES, 'standard', 0);
+    await replaceDefaultOutfits(db, OUTFITS);
+  });
+}
+
 export function getWardrobeDatabasePath() {
   return path.join(knownFolders.documents().path, DATABASE_FILE_NAME);
 }
@@ -273,6 +364,14 @@ export async function initializeWardrobeDatabase() {
     const db = openOrCreate(getWardrobeDatabasePath());
     await ensureSchema(db);
     await seedDatabase(db);
+
+    const currentVersion = Number(db.getVersion?.() ?? 0);
+
+    if (currentVersion < CURRENT_DB_VERSION) {
+      await migrateSeedCatalog(db);
+      db.setVersion(CURRENT_DB_VERSION);
+    }
+
     databaseInstance = db;
     initializationPromise = null;
     return db;
