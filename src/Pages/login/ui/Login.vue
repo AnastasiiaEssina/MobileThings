@@ -91,7 +91,7 @@ const buttonText = computed(() =>
 
 watch(
   () => snapshot.value,
-  async (nextSnapshot) => {
+  (nextSnapshot) => {
     if (!nextSnapshot.matches('success') || !nextSnapshot.context.accessToken) {
       return;
     }
