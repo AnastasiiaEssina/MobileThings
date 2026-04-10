@@ -140,7 +140,7 @@ import selectOutfitToShare from '../../selectOutfitToShare/ui/selectOutfitToShar
 
 const wardrobeStore = useWardrobeStore();
 const { outfits: allOutfits } = storeToRefs(wardrobeStore);
-const outfits = computed(() => allOutfits.value.slice(0, 2));
+const outfits = computed(() => allOutfits.value);
 const selectedOutfitId = ref<string | null>(null);
 const selectedOutfit = computed<Outfit | null>(() => {
   if (!selectedOutfitId.value) {
