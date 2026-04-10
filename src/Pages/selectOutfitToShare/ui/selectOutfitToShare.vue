@@ -71,13 +71,9 @@
             :class="{ selected: selectedOutfitId === item.id }"
             :backgroundColor="COLORS.cardBackground"
             :borderColor="COLORS.profileText"
-            @tap="selectOutfit(item.id)"
+            @tap="handleOutfitTap(item.id)"
           >
-            <Image
-              :src="item.imageUrl"
-              stretch="aspectFill"
-              class="outfit-image"
-            />
+            <OutfitPreview :items="wardrobeStore.getOutfitItems(item)" variant="tiny" />
           </GridLayout>
         </WrapLayout>
       </ScrollView>
@@ -89,27 +85,15 @@
         :backgroundColor="COLORS.profileBackground"
       >
         <GridLayout col="0" class="nav-item" @tap="openMyOutfits">
-          <SVGView
-            src="~/assets/home-alt.svg"
-            stretch="aspectFit"
-            class="nav-svg home-icon"
-          />
+          <SVGView src="~/assets/home-alt.svg" stretch="aspectFit" class="nav-svg home-icon" />
         </GridLayout>
 
         <GridLayout col="1" class="nav-item" @tap="openMyClothes">
-          <SVGView
-            src="~/assets/backpack.svg"
-            stretch="aspectFit"
-            class="nav-svg backpack-icon"
-          />
+          <SVGView src="~/assets/backpack.svg" stretch="aspectFit" class="nav-svg backpack-icon" />
         </GridLayout>
 
         <GridLayout col="2" class="nav-item">
-          <SVGView
-            src="~/assets/thumb-up.svg"
-            stretch="aspectFit"
-            class="nav-svg thumbs-icon"
-          />
+          <SVGView src="~/assets/thumb-up.svg" stretch="aspectFit" class="nav-svg thumbs-icon" />
         </GridLayout>
 
         <GridLayout
@@ -118,13 +102,18 @@
           :backgroundColor="COLORS.navActiveBackground"
           @tap="openProfile"
         >
-          <SVGView
-            src="~/assets/user.svg"
-            stretch="aspectFit"
-            class="nav-svg profile-icon"
-          />
+          <SVGView src="~/assets/user.svg" stretch="aspectFit" class="nav-svg profile-icon" />
         </GridLayout>
       </GridLayout>
+
+      <OutfitInfoModal
+        row="0"
+        rowSpan="3"
+        :visible="Boolean(infoOutfit)"
+        :outfit="infoOutfit"
+        :outfit-items="infoOutfitItems"
+        @close="closeOutfitDetails"
+      />
     </GridLayout>
   </Page>
 </template>
@@ -134,51 +123,34 @@ import { computed, ref, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
 import { storeToRefs } from 'pinia';
 import {
+  COLOR_SCHEME_LABELS,
   COLOR_SCHEME_VALUES,
+  OUTFIT_STYLE_LABELS,
   OUTFIT_STYLE_VALUES,
+  SEASON_LABELS,
   SEASON_VALUES,
   matchesOutfitFilters,
   type OutfitFilterState,
 } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import { COLORS } from '../../../Shared/ui/Colors';
+import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
+import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import Profile from '../../profile/ui/Profile.vue';
 
 type FilterKey = 'style' | 'season' | 'colorScheme';
 
+const wardrobeStore = useWardrobeStore();
+const { outfits } = storeToRefs(wardrobeStore);
+
 const styleOptions = ['all', ...OUTFIT_STYLE_VALUES] as const;
 const seasonOptions = ['all', ...SEASON_VALUES] as const;
 const colorOptions = ['all', ...COLOR_SCHEME_VALUES] as const;
 
-const styleLabels: Record<(typeof styleOptions)[number], string> = {
-  all: 'Любой',
-  casual: 'Кэжуал',
-  business: 'Деловой',
-  sport: 'Спорт',
-  evening: 'Вечер',
-};
-
-const seasonLabels: Record<(typeof seasonOptions)[number], string> = {
-  all: 'Любой',
-  spring: 'Весна',
-  summer: 'Лето',
-  autumn: 'Осень',
-  winter: 'Зима',
-};
-
-const colorLabels: Record<(typeof colorOptions)[number], string> = {
-  all: 'Любая',
-  light: 'Светлая',
-  dark: 'Тёмная',
-  neutral: 'Нейтральная',
-  bright: 'Яркая',
-};
-
-const wardrobeStore = useWardrobeStore();
-const { outfits } = storeToRefs(wardrobeStore);
 const selectedOutfitId = ref('');
+const infoOutfitId = ref<string | null>(null);
 const activeFilter = ref<FilterKey | null>(null);
 const filters = ref<OutfitFilterState>({
   style: 'all',
@@ -190,9 +162,9 @@ const filteredOutfits = computed(() =>
   outfits.value.filter((outfit) => matchesOutfitFilters(outfit, filters.value))
 );
 
-const styleLabel = computed(() => styleLabels[filters.value.style] ?? 'Любой');
-const seasonLabel = computed(() => seasonLabels[filters.value.season] ?? 'Любой');
-const colorLabel = computed(() => colorLabels[filters.value.colorScheme] ?? 'Любая');
+const styleLabel = computed(() => OUTFIT_STYLE_LABELS[filters.value.style] ?? 'Любой');
+const seasonLabel = computed(() => SEASON_LABELS[filters.value.season] ?? 'Любой');
+const colorLabel = computed(() => COLOR_SCHEME_LABELS[filters.value.colorScheme] ?? 'Любая');
 
 const activeValue = computed(() => {
   if (!activeFilter.value) {
@@ -204,18 +176,34 @@ const activeValue = computed(() => {
 
 const activeOptions = computed(() => {
   if (activeFilter.value === 'style') {
-    return styleOptions.map((value) => ({ value, label: styleLabels[value] }));
+    return styleOptions.map((value) => ({ value, label: OUTFIT_STYLE_LABELS[value] }));
   }
 
   if (activeFilter.value === 'season') {
-    return seasonOptions.map((value) => ({ value, label: seasonLabels[value] }));
+    return seasonOptions.map((value) => ({ value, label: SEASON_LABELS[value] }));
   }
 
   if (activeFilter.value === 'colorScheme') {
-    return colorOptions.map((value) => ({ value, label: colorLabels[value] }));
+    return colorOptions.map((value) => ({ value, label: COLOR_SCHEME_LABELS[value] }));
   }
 
   return [];
+});
+
+const infoOutfit = computed(() => {
+  if (!infoOutfitId.value) {
+    return null;
+  }
+
+  return outfits.value.find((item) => item.id === infoOutfitId.value) ?? null;
+});
+
+const infoOutfitItems = computed(() => {
+  if (!infoOutfit.value) {
+    return [];
+  }
+
+  return wardrobeStore.getOutfitItems(infoOutfit.value);
 });
 
 watch(
@@ -248,8 +236,17 @@ function selectFilterOption(value: string) {
   activeFilter.value = null;
 }
 
-function selectOutfit(id: string) {
+function handleOutfitTap(id: string) {
+  if (selectedOutfitId.value === id) {
+    infoOutfitId.value = id;
+    return;
+  }
+
   selectedOutfitId.value = id;
+}
+
+function closeOutfitDetails() {
+  infoOutfitId.value = null;
 }
 
 function openMyOutfits() {
@@ -332,12 +329,6 @@ function openProfile() {
 
 .outfit-card.selected {
   border-width: 3;
-}
-
-.outfit-image {
-  width: 114;
-  height: 114;
-  border-radius: 14;
 }
 
 .bottom-nav {

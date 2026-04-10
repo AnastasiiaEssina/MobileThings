@@ -19,7 +19,9 @@
             :text="category.label"
             class="category-chip"
             :class="{ active: selectedCategory === category.value }"
-            :backgroundColor="selectedCategory === category.value ? COLORS.profileText : COLORS.profileButton"
+            :backgroundColor="
+              selectedCategory === category.value ? COLORS.profileText : COLORS.profileButton
+            "
             :color="selectedCategory === category.value ? COLORS.background : COLORS.profileText"
             @tap="selectedCategory = category.value"
           />
@@ -42,20 +44,9 @@
             class="item-card"
             :backgroundColor="COLORS.cardBackground"
             :borderColor="COLORS.profileText"
+            @tap="openClothingDetails(item.id)"
           >
-            <Image
-              v-if="item.imageUrl"
-              :src="item.imageUrl"
-              stretch="aspectFit"
-              class="item-image"
-            />
-            <GridLayout
-              v-else
-              class="placeholder-card"
-              :backgroundColor="item.fillColor || COLORS.cardBackground"
-            >
-              <Label :text="item.emoji || '👕'" class="placeholder-emoji" />
-            </GridLayout>
+            <ClothingPreview :item="item" size="sm" />
           </GridLayout>
         </WrapLayout>
       </ScrollView>
@@ -67,11 +58,7 @@
         :backgroundColor="COLORS.profileBackground"
       >
         <GridLayout col="0" class="nav-item" @tap="openMyOutfits">
-          <SVGView
-            src="~/assets/home-alt.svg"
-            stretch="aspectFit"
-            class="nav-svg home-icon"
-          />
+          <SVGView src="~/assets/home-alt.svg" stretch="aspectFit" class="nav-svg home-icon" />
         </GridLayout>
 
         <GridLayout
@@ -80,27 +67,15 @@
           :backgroundColor="COLORS.navActiveBackground"
           @tap="openMyClothes"
         >
-          <SVGView
-            src="~/assets/backpack.svg"
-            stretch="aspectFit"
-            class="nav-svg backpack-icon"
-          />
+          <SVGView src="~/assets/backpack.svg" stretch="aspectFit" class="nav-svg backpack-icon" />
         </GridLayout>
 
         <GridLayout col="2" class="nav-item">
-          <SVGView
-            src="~/assets/thumb-up.svg"
-            stretch="aspectFit"
-            class="nav-svg thumbs-icon"
-          />
+          <SVGView src="~/assets/thumb-up.svg" stretch="aspectFit" class="nav-svg thumbs-icon" />
         </GridLayout>
 
         <GridLayout col="3" class="nav-item" @tap="openProfile">
-          <SVGView
-            src="~/assets/user.svg"
-            stretch="aspectFit"
-            class="nav-svg profile-icon"
-          />
+          <SVGView src="~/assets/user.svg" stretch="aspectFit" class="nav-svg profile-icon" />
         </GridLayout>
       </GridLayout>
 
@@ -110,6 +85,15 @@
         :visible="showAddClothesModal"
         @close="showAddClothesModal = false"
       />
+
+      <ClothingInfoModal
+        row="0"
+        rowSpan="5"
+        :visible="Boolean(selectedClothing)"
+        :clothing="selectedClothing"
+        :related-outfits="relatedOutfits"
+        @close="closeClothingDetails"
+      />
     </GridLayout>
   </Page>
 </template>
@@ -118,9 +102,14 @@
 import { computed, ref } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
 import { storeToRefs } from 'pinia';
-import type { ClothingCategory } from '../../../Shared/model/Wardrobe';
+import {
+  CLOTHING_CATEGORY_LABELS,
+  type ClothingCategory,
+} from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import AddClothesModal from '../../../Shared/ui/AddClothesModal.vue';
+import ClothingInfoModal from '../../../Shared/ui/ClothingInfoModal.vue';
+import ClothingPreview from '../../../Shared/ui/ClothingPreview.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import Profile from '../../profile/ui/Profile.vue';
@@ -129,14 +118,16 @@ type Category = 'all' | ClothingCategory;
 
 const selectedCategory = ref<Category>('all');
 const showAddClothesModal = ref(false);
+const selectedClothingId = ref<string | null>(null);
 const wardrobeStore = useWardrobeStore();
-const { myClothes } = storeToRefs(wardrobeStore);
+const { myClothes, outfits } = storeToRefs(wardrobeStore);
 
 const categories = [
-  { value: 'all' as const, label: 'Все' },
-  { value: 'tops' as const, label: 'Топы' },
-  { value: 'pants' as const, label: 'Брюки' },
-  { value: 'shoes' as const, label: 'Обувь' },
+  { value: 'all' as const, label: CLOTHING_CATEGORY_LABELS.all },
+  { value: 'tops' as const, label: CLOTHING_CATEGORY_LABELS.tops },
+  { value: 'pants' as const, label: CLOTHING_CATEGORY_LABELS.pants },
+  { value: 'shoes' as const, label: CLOTHING_CATEGORY_LABELS.shoes },
+  { value: 'accessories' as const, label: CLOTHING_CATEGORY_LABELS.accessories },
 ];
 
 const filteredItems = computed(() => {
@@ -146,6 +137,30 @@ const filteredItems = computed(() => {
 
   return myClothes.value.filter((item) => item.category === selectedCategory.value);
 });
+
+const selectedClothing = computed(() => {
+  if (!selectedClothingId.value) {
+    return null;
+  }
+
+  return myClothes.value.find((item) => item.id === selectedClothingId.value) ?? null;
+});
+
+const relatedOutfits = computed(() => {
+  if (!selectedClothing.value) {
+    return [];
+  }
+
+  return outfits.value.filter((outfit) => outfit.items.includes(selectedClothing.value.id));
+});
+
+function openClothingDetails(clothingId: string) {
+  selectedClothingId.value = clothingId;
+}
+
+function closeClothingDetails() {
+  selectedClothingId.value = null;
+}
 
 function openMyOutfits() {
   $navigateTo(MyOutfits);
@@ -222,27 +237,6 @@ function openProfile() {
 .add-symbol {
   font-size: 34;
   font-weight: 700;
-  horizontal-align: center;
-  vertical-align: middle;
-}
-
-.item-image {
-  width: 56;
-  height: 56;
-  horizontal-align: center;
-  vertical-align: middle;
-}
-
-.placeholder-card {
-  width: 56;
-  height: 56;
-  border-radius: 12;
-  horizontal-align: center;
-  vertical-align: middle;
-}
-
-.placeholder-emoji {
-  font-size: 30;
   horizontal-align: center;
   vertical-align: middle;
 }

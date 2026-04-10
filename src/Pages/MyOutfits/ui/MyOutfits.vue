@@ -85,12 +85,9 @@
             class="outfit-card"
             :backgroundColor="COLORS.cardBackground"
             :borderColor="COLORS.profileText"
+            @tap="openOutfitDetails(outfit.id)"
           >
-            <Image
-              :src="outfit.imageUrl"
-              stretch="aspectFill"
-              class="outfit-image"
-            />
+            <OutfitPreview :items="getOutfitItems(outfit)" variant="card" />
           </GridLayout>
         </StackLayout>
       </ScrollView>
@@ -139,6 +136,15 @@
           />
         </GridLayout>
       </GridLayout>
+
+      <OutfitInfoModal
+        row="0"
+        rowSpan="6"
+        :visible="Boolean(selectedOutfit)"
+        :outfit="selectedOutfit"
+        :outfit-items="selectedOutfitItems"
+        @close="closeOutfitDetails"
+      />
     </GridLayout>
   </Page>
 </template>
@@ -149,6 +155,8 @@ import { $navigateTo } from 'nativescript-vue';
 import { useMachine } from '@xstate/vue';
 import { storeToRefs } from 'pinia';
 import { COLORS } from '../../../Shared/ui/Colors';
+import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
+import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import CreateOutfit from '../../CreateOutfit/ui/CreateOutfit.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import { outfitsMachine } from '../model/Machine';
@@ -158,6 +166,7 @@ import {
   COLOR_SCHEME_VALUES,
   OUTFIT_STYLE_VALUES,
   SEASON_VALUES,
+  type Outfit,
   type OutfitFilterState,
 } from '../../../Shared/model/Wardrobe';
 
@@ -195,6 +204,7 @@ const { snapshot, send } = useMachine(outfitsMachine);
 const wardrobeStore = useWardrobeStore();
 const { outfits } = storeToRefs(wardrobeStore);
 const activeFilter = ref<FilterKey | null>(null);
+const selectedOutfitId = ref<string | null>(null);
 
 onMounted(() => {
   send({ type: 'FETCH_OUTFITS' });
@@ -242,6 +252,22 @@ const activeOptions = computed(() => {
   return [];
 });
 
+const selectedOutfit = computed<Outfit | null>(() => {
+  if (!selectedOutfitId.value) {
+    return null;
+  }
+
+  return outfits.value.find((item) => item.id === selectedOutfitId.value) ?? null;
+});
+
+const selectedOutfitItems = computed(() => {
+  if (!selectedOutfit.value) {
+    return [];
+  }
+
+  return wardrobeStore.getOutfitItems(selectedOutfit.value);
+});
+
 function setFilter(payload: Partial<OutfitFilterState>) {
   send({ type: 'SET_FILTER', payload });
 }
@@ -265,6 +291,18 @@ function selectFilterOption(value: string) {
 
 function addOutfit() {
   $navigateTo(CreateOutfit);
+}
+
+function openOutfitDetails(outfitId: string) {
+  selectedOutfitId.value = outfitId;
+}
+
+function closeOutfitDetails() {
+  selectedOutfitId.value = null;
+}
+
+function getOutfitItems(outfit: Outfit) {
+  return wardrobeStore.getOutfitItems(outfit);
 }
 
 function openMyOutfits() {
@@ -377,12 +415,6 @@ function openProfile() {
   height: 168;
   margin-right: 12;
   border-width: 1;
-  border-radius: 16;
-}
-
-.outfit-image {
-  width: 150;
-  height: 168;
   border-radius: 16;
 }
 

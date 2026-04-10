@@ -38,12 +38,9 @@
             columns="*"
             class="outfit-card"
             :backgroundColor="COLORS.cardBackground"
+            @tap="openOutfitDetails(item.id)"
           >
-            <Image
-              :src="item.imageUrl"
-              stretch="aspectFill"
-              class="outfit-image"
-            />
+            <OutfitPreview :items="getOutfitItems(item)" variant="large" />
 
             <GridLayout class="menu-button">
               <SVGView
@@ -114,15 +111,27 @@
           />
         </GridLayout>
       </GridLayout>
+
+      <OutfitInfoModal
+        row="0"
+        rowSpan="3"
+        :visible="Boolean(selectedOutfit)"
+        :outfit="selectedOutfit"
+        :outfit-items="selectedOutfitItems"
+        @close="closeOutfitDetails"
+      />
     </GridLayout>
   </Page>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
 import { storeToRefs } from 'pinia';
+import type { Outfit } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
+import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
+import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
@@ -131,6 +140,21 @@ import selectOutfitToShare from '../../selectOutfitToShare/ui/selectOutfitToShar
 const wardrobeStore = useWardrobeStore();
 const { outfits: allOutfits } = storeToRefs(wardrobeStore);
 const outfits = computed(() => allOutfits.value.slice(0, 2));
+const selectedOutfitId = ref<string | null>(null);
+const selectedOutfit = computed<Outfit | null>(() => {
+  if (!selectedOutfitId.value) {
+    return null;
+  }
+
+  return allOutfits.value.find((item) => item.id === selectedOutfitId.value) ?? null;
+});
+const selectedOutfitItems = computed(() => {
+  if (!selectedOutfit.value) {
+    return [];
+  }
+
+  return wardrobeStore.getOutfitItems(selectedOutfit.value);
+});
 
 function openSelectOutfitToShare() {
   $navigateTo(selectOutfitToShare);
@@ -146,6 +170,18 @@ function openMyClothes() {
 
 function openProfile() {
   return;
+}
+
+function openOutfitDetails(outfitId: string) {
+  selectedOutfitId.value = outfitId;
+}
+
+function closeOutfitDetails() {
+  selectedOutfitId.value = null;
+}
+
+function getOutfitItems(outfit: Outfit) {
+  return wardrobeStore.getOutfitItems(outfit);
 }
 </script>
 
@@ -210,12 +246,6 @@ function openProfile() {
   margin-bottom: 18;
   border-width: 1;
   border-color: #7d1b29;
-  border-radius: 18;
-}
-
-.outfit-image {
-  width: 316;
-  height: 336;
   border-radius: 18;
 }
 

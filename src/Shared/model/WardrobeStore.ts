@@ -6,10 +6,14 @@ import { initializeWardrobeDatabase } from './db/WardrobeDatabase';
 import {
   addClothingToMyWardrobe as addClothingToMyWardrobeInRepository,
   createOutfit as createOutfitInRepository,
+  deleteClothing as deleteClothingInRepository,
+  deleteOutfit as deleteOutfitInRepository,
   getMyClothes,
   getOutfits,
   getStandardClothes,
   getUserSettings,
+  updateClothing as updateClothingInRepository,
+  updateOutfit as updateOutfitInRepository,
   updateUserSettings as updateUserSettingsInRepository,
 } from './repositories/WardrobeRepository';
 
@@ -125,9 +129,71 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await refreshSettings();
   }
 
+  async function updateOutfit(
+    outfitId: string,
+    patch: { name: string; style: Outfit['style']; season: Outfit['season']; colorScheme: Outfit['colorScheme'] }
+  ) {
+    await initialize();
+    await updateOutfitInRepository(outfitId, patch);
+    await refreshOutfits();
+  }
+
+  async function deleteOutfit(outfitId: string) {
+    await initialize();
+    await deleteOutfitInRepository(outfitId);
+    await refreshOutfits();
+  }
+
+  async function updateClothing(
+    clothingId: string,
+    patch: {
+      name: string;
+      category: Clothing['category'];
+      season: Clothing['season'];
+      colorScheme: Clothing['colorScheme'];
+    }
+  ) {
+    await initialize();
+    await updateClothingInRepository(clothingId, patch);
+    await Promise.all([refreshClothes(), refreshOutfits()]);
+  }
+
+  async function deleteClothing(clothingId: string) {
+    await initialize();
+    const isUsedInOutfits = outfits.value.some((outfit) => outfit.items.includes(clothingId));
+
+    if (isUsedInOutfits) {
+      throw new Error('Нельзя удалить вещь, пока она входит в образ.');
+    }
+
+    await deleteClothingInRepository(clothingId);
+    await Promise.all([refreshClothes(), refreshOutfits()]);
+  }
+
+  const allClothes = computed(() => {
+    const uniqueById = new Map<string, Clothing>();
+
+    for (const item of [...standardClothes.value, ...myClothes.value]) {
+      uniqueById.set(item.id, item);
+    }
+
+    return [...uniqueById.values()];
+  });
+
+  function getClothingById(clothingId: string) {
+    return allClothes.value.find((item) => item.id === clothingId);
+  }
+
+  function getOutfitItems(outfit: Outfit) {
+    return outfit.items
+      .map((itemId) => getClothingById(itemId))
+      .filter((item): item is Clothing => Boolean(item));
+  }
+
   return {
     myClothes,
     standardClothes,
+    allClothes,
     outfits,
     settings,
     isHydrated,
@@ -140,6 +206,12 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     refreshSettings,
     addClothingToMyWardrobe,
     createOutfitFromSelection,
+    updateOutfit,
+    deleteOutfit,
+    updateClothing,
+    deleteClothing,
     updateUserSettings,
+    getClothingById,
+    getOutfitItems,
   };
 });

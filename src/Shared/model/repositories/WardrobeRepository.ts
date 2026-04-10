@@ -1,5 +1,11 @@
 import type { SqliteRow } from '@nativescript-community/sqlite/sqlite.common';
-import type { Clothing, Outfit, UserSettings } from '../Wardrobe';
+import type {
+  Clothing,
+  ClothingUpdateInput,
+  Outfit,
+  OutfitUpdateInput,
+  UserSettings,
+} from '../Wardrobe';
 import { DEFAULT_SETTINGS_ID, getWardrobeDatabase } from '../db/WardrobeDatabase';
 
 interface ClothingRow extends SqliteRow {
@@ -211,6 +217,180 @@ export async function createOutfit(input: {
           VALUES (?, ?, ?, ?, 'pending', ?, ?)
         `,
         [`${input.id}:${clothingId}:${index}`, input.id, clothingId, index, createdAt, createdAt]
+      );
+    }
+  });
+}
+
+export async function updateOutfit(outfitId: string, patch: OutfitUpdateInput) {
+  const db = await getWardrobeDatabase();
+
+  await db.execute(
+    `
+      UPDATE outfits
+      SET name = ?,
+          style = ?,
+          season = ?,
+          color_scheme = ?,
+          updated_at = ?,
+          sync_status = CASE
+            WHEN sync_status = 'synced' THEN 'pending'
+            ELSE sync_status
+          END
+      WHERE id = ?
+    `,
+    [
+      patch.name,
+      patch.style,
+      patch.season,
+      patch.colorScheme,
+      new Date().toISOString(),
+      outfitId,
+    ]
+  );
+}
+
+export async function deleteOutfit(outfitId: string) {
+  const db = await getWardrobeDatabase();
+  const now = new Date().toISOString();
+
+  await db.transaction(async () => {
+    await db.execute(
+      `
+        UPDATE outfits
+        SET is_deleted = 1,
+            updated_at = ?,
+            sync_status = CASE
+              WHEN sync_status = 'synced' THEN 'pending'
+              ELSE sync_status
+            END
+        WHERE id = ?
+      `,
+      [now, outfitId]
+    );
+
+    await db.execute(
+      `
+        UPDATE outfit_items
+        SET updated_at = ?,
+            sync_status = CASE
+              WHEN sync_status = 'synced' THEN 'pending'
+              ELSE sync_status
+            END
+        WHERE outfit_id = ?
+      `,
+      [now, outfitId]
+    );
+  });
+}
+
+export async function updateClothing(clothingId: string, patch: ClothingUpdateInput) {
+  const db = await getWardrobeDatabase();
+
+  await db.execute(
+    `
+      UPDATE clothes
+      SET name = ?,
+          category = ?,
+          season = ?,
+          color_scheme = ?,
+          updated_at = ?,
+          sync_status = CASE
+            WHEN sync_status = 'synced' THEN 'pending'
+            ELSE sync_status
+          END
+      WHERE id = ?
+    `,
+    [
+      patch.name,
+      patch.category,
+      patch.season,
+      patch.colorScheme,
+      new Date().toISOString(),
+      clothingId,
+    ]
+  );
+}
+
+export async function deleteClothing(clothingId: string) {
+  const db = await getWardrobeDatabase();
+  const now = new Date().toISOString();
+  const usageRow = await db.get(
+    `
+      SELECT COUNT(*) AS count
+      FROM outfit_items
+      INNER JOIN outfits ON outfits.id = outfit_items.outfit_id
+      WHERE outfit_items.clothing_id = ?
+        AND outfits.is_deleted = 0
+    `,
+    [clothingId]
+  );
+
+  if (Number(usageRow?.count ?? 0) > 0) {
+    throw new Error('Нельзя удалить вещь, пока она входит в образ.');
+  }
+
+  await db.transaction(async () => {
+    await db.execute(
+      `
+        UPDATE clothes
+        SET is_deleted = CASE WHEN source = 'standard' THEN is_deleted ELSE 1 END,
+            is_in_wardrobe = 0,
+            updated_at = ?,
+            sync_status = CASE
+              WHEN sync_status = 'synced' THEN 'pending'
+              ELSE sync_status
+            END
+        WHERE id = ?
+      `,
+      [now, clothingId]
+    );
+
+    await db.execute(
+      `
+        UPDATE outfit_items
+        SET updated_at = ?,
+            sync_status = CASE
+              WHEN sync_status = 'synced' THEN 'pending'
+              ELSE sync_status
+            END
+        WHERE clothing_id = ?
+      `,
+      [now, clothingId]
+    );
+
+    await db.execute(
+      `
+        DELETE FROM outfit_items
+        WHERE clothing_id = ?
+      `,
+      [clothingId]
+    );
+
+    const emptyOutfits = await db.select(
+      `
+        SELECT outfits.id
+        FROM outfits
+        LEFT JOIN outfit_items ON outfit_items.outfit_id = outfits.id
+        WHERE outfits.is_deleted = 0
+        GROUP BY outfits.id
+        HAVING COUNT(outfit_items.id) = 0
+      `
+    );
+
+    for (const row of emptyOutfits as Array<{ id: string }>) {
+      await db.execute(
+        `
+          UPDATE outfits
+          SET is_deleted = 1,
+              updated_at = ?,
+              sync_status = CASE
+                WHEN sync_status = 'synced' THEN 'pending'
+                ELSE sync_status
+              END
+          WHERE id = ?
+        `,
+        [now, row.id]
       );
     }
   });
