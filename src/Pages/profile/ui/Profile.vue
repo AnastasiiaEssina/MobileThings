@@ -15,6 +15,7 @@
         <StackLayout row="1" class="profile-block">
           <Image
             src="~/assets/bird.jpg"
+            loadMode="async"
             stretch="aspectFill"
             class="avatar"
           />

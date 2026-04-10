@@ -320,8 +320,8 @@ function openProfile() {
 }
 
 .outfit-card {
-  width: 114;
-  height: 114;
+  width: 136;
+  height: 136;
   margin: 6;
   border-width: 1;
   border-radius: 14;

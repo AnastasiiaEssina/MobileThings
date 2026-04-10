@@ -19,6 +19,7 @@
                 <Image
                   v-if="item.imageUrl"
                   :src="item.imageUrl"
+                  loadMode="async"
                   stretch="aspectFit"
                   class="selected-image"
                 />
@@ -73,6 +74,7 @@
                   <Image
                     v-if="item.imageUrl"
                     :src="item.imageUrl"
+                    loadMode="async"
                     stretch="aspectFit"
                     class="clothing-image"
                   />
@@ -103,6 +105,7 @@
               <Image
                 v-if="item.imageUrl"
                 :src="item.imageUrl"
+                loadMode="async"
                 stretch="aspectFit"
                 class="clothing-image"
               />

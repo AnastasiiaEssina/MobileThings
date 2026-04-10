@@ -51,6 +51,7 @@
           <Image
             v-if="item.imageUrl"
             :src="item.imageUrl"
+            loadMode="async"
             stretch="aspectFit"
             class="item-image"
           />
