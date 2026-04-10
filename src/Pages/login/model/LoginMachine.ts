@@ -1,10 +1,13 @@
 import { createMachine, assign, fromPromise } from 'xstate';
+import { loginUser } from '../../../Shared/model/api/AuthApi';
 
 type Context = {
   email: string;
   password: string;
   error: string;
-  token: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
 };
 
 type Events =
@@ -17,8 +20,10 @@ type SubmitInput = {
 };
 
 type SubmitResult = {
-  token: string;
+  accessToken: string;
+  refreshToken: string;
   email: string;
+  expiresAt: string;
 };
 
 export const loginMachine = createMachine(
@@ -34,7 +39,9 @@ export const loginMachine = createMachine(
       email: '',
       password: '',
       error: '',
-      token: '',
+      accessToken: '',
+      refreshToken: '',
+      expiresAt: '',
     },
 
     states: {
@@ -46,7 +53,9 @@ export const loginMachine = createMachine(
               email: ({ event }) => event.email.trim(),
               password: ({ event }) => event.password,
               error: () => '',
-              token: () => '',
+              accessToken: () => '',
+              refreshToken: () => '',
+              expiresAt: () => '',
             }),
           },
         },
@@ -62,8 +71,10 @@ export const loginMachine = createMachine(
           onDone: {
             target: 'success',
             actions: assign({
-              token: ({ event }) => event.output.token,
+              accessToken: ({ event }) => event.output.accessToken,
+              refreshToken: ({ event }) => event.output.refreshToken,
               email: ({ event }) => event.output.email,
+              expiresAt: ({ event }) => event.output.expiresAt,
               error: () => '',
             }),
           },
@@ -72,7 +83,9 @@ export const loginMachine = createMachine(
             actions: assign({
               error: ({ event }) =>
                 event.error instanceof Error ? event.error.message : 'Не удалось выполнить вход.',
-              token: () => '',
+              accessToken: () => '',
+              refreshToken: () => '',
+              expiresAt: () => '',
             }),
           },
         },
@@ -96,7 +109,9 @@ export const loginMachine = createMachine(
               email: ({ event }) => event.email.trim(),
               password: ({ event }) => event.password,
               error: () => '',
-              token: () => '',
+              accessToken: () => '',
+              refreshToken: () => '',
+              expiresAt: () => '',
             }),
           },
         },
@@ -106,8 +121,6 @@ export const loginMachine = createMachine(
   {
     actors: {
       submitForm: fromPromise(async ({ input }: { input: SubmitInput }): Promise<SubmitResult> => {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
         const email = input.email.trim().toLowerCase();
         const password = input.password;
 
@@ -119,10 +132,7 @@ export const loginMachine = createMachine(
           throw new Error('Пароль должен быть не короче 6 символов.');
         }
 
-        return {
-          token: `token-${Date.now()}-${email.replace(/[^a-z0-9]/g, '-')}`,
-          email,
-        };
+        return loginUser(email, password);
       }),
     },
   }

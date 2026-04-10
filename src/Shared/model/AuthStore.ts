@@ -4,54 +4,108 @@ import {
   clearStoredSession,
   getStoredSession,
   saveStoredSession,
+  type StoredSession,
 } from './AuthStorage';
+import { refreshUserSession } from './api/AuthApi';
 
 function normalizeStoredValue(value: string | null) {
   const nextValue = value?.trim() ?? '';
   return nextValue.length ? nextValue : null;
 }
 
-export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(null);
-  const email = ref<string | null>(null);
-  const isHydrated = ref(false);
+function normalizeSession(session: StoredSession): StoredSession {
+  return {
+    accessToken: normalizeStoredValue(session.accessToken),
+    refreshToken: normalizeStoredValue(session.refreshToken),
+    email: normalizeStoredValue(session.email),
+    expiresAt: normalizeStoredValue(session.expiresAt),
+  };
+}
 
-  function initialize() {
-    const session = getStoredSession();
-    token.value = normalizeStoredValue(session.token);
+export const useAuthStore = defineStore('auth', () => {
+  const accessToken = ref<string | null>(null);
+  const refreshToken = ref<string | null>(null);
+  const email = ref<string | null>(null);
+  const expiresAt = ref<string | null>(null);
+  const isHydrated = ref(false);
+  const isRefreshing = ref(false);
+
+  function applySession(session: StoredSession) {
+    accessToken.value = normalizeStoredValue(session.accessToken);
+    refreshToken.value = normalizeStoredValue(session.refreshToken);
     email.value = normalizeStoredValue(session.email);
+    expiresAt.value = normalizeStoredValue(session.expiresAt);
+  }
+
+  function persistCurrentSession() {
+    saveStoredSession({
+      accessToken: accessToken.value,
+      refreshToken: refreshToken.value,
+      email: email.value,
+      expiresAt: expiresAt.value,
+    });
+  }
+
+  async function initialize() {
+    const storedSession = normalizeSession(getStoredSession());
+    applySession(storedSession);
+
+    if (storedSession.refreshToken) {
+      isRefreshing.value = true;
+
+      try {
+        const nextSession = await refreshUserSession(storedSession.refreshToken);
+        setSession(nextSession);
+      } catch {
+        logout();
+      } finally {
+        isRefreshing.value = false;
+      }
+    }
+
     isHydrated.value = true;
   }
 
-  function setSession(payload: { token: string; email?: string | null }) {
-    token.value = payload.token;
+  function setSession(payload: {
+    accessToken: string;
+    refreshToken?: string | null;
+    email?: string | null;
+    expiresAt?: string | null;
+  }) {
+    accessToken.value = payload.accessToken;
+    refreshToken.value = normalizeStoredValue(payload.refreshToken ?? null);
     email.value = normalizeStoredValue(payload.email ?? null);
-    saveStoredSession({
-      token: payload.token,
-      email: email.value,
-    });
+    expiresAt.value = normalizeStoredValue(payload.expiresAt ?? null);
+    persistCurrentSession();
     isHydrated.value = true;
   }
 
   function continueAsGuest() {
     setSession({
-      token: `guest-token-${Date.now()}`,
+      accessToken: `guest-token-${Date.now()}`,
+      refreshToken: null,
       email: 'guest@local',
+      expiresAt: null,
     });
   }
 
   function logout() {
-    token.value = null;
+    accessToken.value = null;
+    refreshToken.value = null;
     email.value = null;
+    expiresAt.value = null;
     clearStoredSession();
     isHydrated.value = true;
   }
 
   return {
-    token,
+    accessToken,
+    refreshToken,
     email,
+    expiresAt,
     isHydrated,
-    isAuthenticated: computed(() => Boolean(token.value)),
+    isRefreshing,
+    isAuthenticated: computed(() => Boolean(accessToken.value)),
     initialize,
     setSession,
     continueAsGuest,

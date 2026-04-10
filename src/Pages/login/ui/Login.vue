@@ -92,13 +92,15 @@ const buttonText = computed(() =>
 watch(
   () => snapshot.value,
   async (nextSnapshot) => {
-    if (!nextSnapshot.matches('success') || !nextSnapshot.context.token) {
+    if (!nextSnapshot.matches('success') || !nextSnapshot.context.accessToken) {
       return;
     }
 
     authStore.setSession({
-      token: nextSnapshot.context.token,
+      accessToken: nextSnapshot.context.accessToken,
+      refreshToken: nextSnapshot.context.refreshToken,
       email: nextSnapshot.context.email,
+      expiresAt: nextSnapshot.context.expiresAt,
     });
   }
 );
