@@ -1,47 +1,68 @@
 <template>
-  <Page :backgroundColor="COLORS.background">
+  <Page :backgroundColor="COLORS.profileBackground">
     <ActionBar visibility="collapse" />
 
     <ScrollView>
       <GridLayout rows="auto, *, auto" columns="*">
         <StackLayout row="0" class="screen" verticalAlignment="top">
-          <Label text="Регистрация" class="title" />
+          <Label text="Вход" class="title" :color="COLORS.profileText" />
+          <Label
+            text="Введите email и пароль, чтобы продолжить"
+            class="subtitle"
+            :color="COLORS.mutedText"
+          />
 
           <StackLayout class="form">
             <TextField
               v-model="email"
               hint="Email"
               keyboardType="email"
-              :backgroundColor="COLORS.accent"
+              autocorrect="false"
+              autocapitalizationType="none"
               class="input"
+              :backgroundColor="COLORS.cardBackground"
+              :color="COLORS.darkText"
             />
 
             <TextField
               v-model="password"
               hint="Пароль"
               secure="true"
-              :backgroundColor="COLORS.accent"
               class="input"
+              :backgroundColor="COLORS.cardBackground"
+              :color="COLORS.darkText"
+            />
+
+            <Label
+              v-if="errorText"
+              :text="errorText"
+              class="error-text"
+              :color="COLORS.profileText"
             />
 
             <Button
-              text="Подтвердить"
+              :text="buttonText"
               class="primary-button"
               :isEnabled="!snapshot.matches('loading')"
+              :backgroundColor="COLORS.profileButton"
+              :color="COLORS.profileText"
               @tap="onConfirm"
-              />
-              
-            <GridLayout columns="auto, auto" class="login-row">
-              <Label text="Уже есть профиль???" class="login-text" col="0" />
-              <Label text="Зайти" class="login-link" col="1" @tap="onLogin" />
-            </GridLayout>
+            />
+
+            <Label
+              text="Регистрация будет добавлена позже"
+              class="login-text"
+              :color="COLORS.mutedText"
+            />
           </StackLayout>
         </StackLayout>
 
         <StackLayout row="2" class="bottom-wrap">
           <Button
-            text="Продолжить без регистрации"
+            text="Продолжить как гость"
             class="secondary-button"
+            :backgroundColor="COLORS.navActiveBackground"
+            :color="COLORS.profileText"
             @tap="onSkip"
           />
         </StackLayout>
@@ -51,24 +72,34 @@
 </template>
 
 <script setup lang="ts">
-import {ref, watch} from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useMachine } from '@xstate/vue';
 import { loginMachine } from '../model/LoginMachine';
-import { $navigateTo } from 'nativescript-vue';
-import {COLORS} from "../../../Shared/ui/Colors"
-import MyOutfits from '../../../Pages/MyOutfits/ui/MyOutfits.vue';
+import { COLORS } from '../../../Shared/ui/Colors';
+import { useAuthStore } from '../../../Shared/model/AuthStore';
 
 const email = ref('');
 const password = ref('');
 
 const { snapshot, send } = useMachine(loginMachine);
+const authStore = useAuthStore();
+
+const errorText = computed(() => snapshot.value.context.error);
+const buttonText = computed(() =>
+  snapshot.value.matches('loading') ? 'Входим...' : 'Войти'
+);
 
 watch(
   () => snapshot.value,
-  (snapshot) => {
-    if (snapshot.matches('success')) {
-      $navigateTo(MyOutfits, { clearHistory: true });
+  async (nextSnapshot) => {
+    if (!nextSnapshot.matches('success') || !nextSnapshot.context.token) {
+      return;
     }
+
+    authStore.setSession({
+      token: nextSnapshot.context.token,
+      email: nextSnapshot.context.email,
+    });
   }
 );
 
@@ -76,35 +107,34 @@ function onConfirm() {
   send({
     type: 'SUBMIT',
     email: email.value,
-    password: password.value
+    password: password.value,
   });
-}
-function onSkip() {
-  console.log("Skip")
-  send({
-    type: 'SKIP'
-  });
-}
-function onLogin(){
-  console.log("Login")
 }
 
+function onSkip() {
+  authStore.continueAsGuest();
+}
 </script>
 
 <style scoped lang="scss">
 .screen {
-  padding-top: 24;
+  padding-top: 34;
   padding-left: 18;
   padding-right: 18;
 }
 
 .title {
-  margin-top: 18;
-  margin-bottom: 72;
+  margin-top: 28;
+  margin-bottom: 12;
   text-align: center;
-  font-size: 30;
-  color: #111111;
+  font-size: 32;
   font-weight: 500;
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 15;
+  margin-bottom: 56;
 }
 
 .form {
@@ -113,11 +143,16 @@ function onLogin(){
 
 .input {
   height: 54;
-  margin-bottom: 22;
+  margin-bottom: 18;
   padding-left: 18;
   border-radius: 18;
-  color: #111111;
   font-size: 16;
+}
+
+.error-text {
+  margin-top: -4;
+  margin-bottom: 12;
+  font-size: 13;
 }
 
 .primary-button,
@@ -126,27 +161,16 @@ function onLogin(){
   border-radius: 18;
   font-size: 18;
   text-transform: none;
-  color: #111111;
-  background-color: #52e6f2;
-  margin-top: 8;
-  margin-bottom: 18;
 }
 
-.login-row {
-  margin-top: 2;
-  horizontal-align: center;
+.primary-button {
+  margin-top: 6;
 }
 
 .login-text {
-  font-size: 15;
-  color: #444444;
-}
-
-.login-link {
-  font-size: 15;
-  color: #2f2fff;
-  text-decoration: underline;
-  margin-left: 4;
+  margin-top: 18;
+  text-align: center;
+  font-size: 14;
 }
 
 .bottom-wrap {
@@ -157,6 +181,5 @@ function onLogin(){
 
 .secondary-button {
   margin-top: 40;
-  margin-bottom: 0;
 }
 </style>
