@@ -76,6 +76,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { storeToRefs } from 'pinia';
 import type { ClothingCategory } from '../model/Wardrobe';
 import { COLORS } from './Colors';
 import { useWardrobeStore } from '../model/WardrobeStore';
@@ -90,7 +91,8 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const { standardClothes, addClothingToMyWardrobe } = useWardrobeStore();
+const wardrobeStore = useWardrobeStore();
+const { standardClothes } = storeToRefs(wardrobeStore);
 const selectedCategory = ref<Category>('all');
 
 const categories = [
@@ -102,14 +104,14 @@ const categories = [
 
 const filteredStandardClothes = computed(() => {
   if (selectedCategory.value === 'all') {
-    return standardClothes;
+    return standardClothes.value;
   }
 
-  return standardClothes.filter((item) => item.category === selectedCategory.value);
+  return standardClothes.value.filter((item) => item.category === selectedCategory.value);
 });
 
-function addClothing(id: string) {
-  addClothingToMyWardrobe(id);
+async function addClothing(id: string) {
+  await wardrobeStore.addClothingToMyWardrobe(id);
   emitClose();
 }
 

@@ -73,6 +73,15 @@ export const outfitsMachine = createMachine({
       entry: assign({ isLoading: false }),
       on: {
         FETCH_OUTFITS: 'loading',
+        FETCH_SUCCESS: {
+          actions: assign(({ context, event }) => ({
+            outfits: event.outfits,
+            filteredOutfits: event.outfits.filter((outfit) =>
+              matchesOutfitFilters(outfit, context.filters)
+            ),
+            isLoading: false,
+          })),
+        },
         
         SET_FILTER: {
           actions: assign(({ context, event }) => {

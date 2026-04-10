@@ -144,20 +144,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
 import { useMachine } from '@xstate/vue';
+import { storeToRefs } from 'pinia';
 import { COLORS } from '../../../Shared/ui/Colors';
 import CreateOutfit from '../../CreateOutfit/ui/CreateOutfit.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import { outfitsMachine } from '../model/Machine';
 import Profile from '../../profile/ui/Profile.vue';
-import { OUTFITS } from '../../../Shared/model/WardrobeData';
+import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import {
   COLOR_SCHEME_VALUES,
   OUTFIT_STYLE_VALUES,
   SEASON_VALUES,
-  type Outfit,
   type OutfitFilterState,
 } from '../../../Shared/model/Wardrobe';
 
@@ -192,12 +192,24 @@ const colorLabels: Record<(typeof colorOptions)[number], string> = {
 };
 
 const { snapshot, send } = useMachine(outfitsMachine);
+const wardrobeStore = useWardrobeStore();
+const { outfits } = storeToRefs(wardrobeStore);
 const activeFilter = ref<FilterKey | null>(null);
 
 onMounted(() => {
   send({ type: 'FETCH_OUTFITS' });
-  send({ type: 'FETCH_SUCCESS', outfits: OUTFITS });
+  void wardrobeStore.initialize().then(() => {
+    send({ type: 'FETCH_SUCCESS', outfits: outfits.value });
+  });
 });
+
+watch(
+  outfits,
+  (nextOutfits) => {
+    send({ type: 'FETCH_SUCCESS', outfits: nextOutfits });
+  },
+  { deep: true }
+);
 
 const filters = computed(() => snapshot.value.context.filters);
 const filteredOutfits = computed(() => snapshot.value.context.filteredOutfits);

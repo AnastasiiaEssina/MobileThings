@@ -119,14 +119,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
-import { OUTFITS } from '../../../Shared/model/WardrobeData';
+import { storeToRefs } from 'pinia';
+import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import { COLORS } from '../../../Shared/ui/Colors';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import selectOutfitToShare from '../../selectOutfitToShare/ui/selectOutfitToShare.vue';
 
-const outfits = OUTFITS.slice(0, 2);
+const wardrobeStore = useWardrobeStore();
+const { outfits: allOutfits } = storeToRefs(wardrobeStore);
+const outfits = computed(() => allOutfits.value.slice(0, 2));
 
 function openSelectOutfitToShare() {
   $navigateTo(selectOutfitToShare);

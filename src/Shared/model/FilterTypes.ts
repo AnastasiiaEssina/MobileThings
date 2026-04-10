@@ -6,4 +6,5 @@ export type {
   OutfitFilterState as FilterState,
   OutfitStyle,
   Season,
+  UserSettings,
 } from './Wardrobe';

@@ -117,6 +117,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
+import { storeToRefs } from 'pinia';
 import type { ClothingCategory } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import AddClothesModal from '../../../Shared/ui/AddClothesModal.vue';
@@ -128,7 +129,8 @@ type Category = 'all' | ClothingCategory;
 
 const selectedCategory = ref<Category>('all');
 const showAddClothesModal = ref(false);
-const { myClothes } = useWardrobeStore();
+const wardrobeStore = useWardrobeStore();
+const { myClothes } = storeToRefs(wardrobeStore);
 
 const categories = [
   { value: 'all' as const, label: 'Все' },

@@ -92,7 +92,7 @@
 
           <WrapLayout class="standard-grid">
             <GridLayout
-              v-for="item in STANDARD_CLOTHES"
+              v-for="item in standardClothes"
               :key="item.id"
               class="clothing-card standard-card"
               :class="{ selected: isSelected(item.id) }"
@@ -175,8 +175,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { $navigateBack, $navigateTo } from 'nativescript-vue';
+import { storeToRefs } from 'pinia';
 import type { Clothing } from '../../../Shared/model/Wardrobe';
-import { STANDARD_CLOTHES } from '../../../Shared/model/WardrobeData';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import AddClothesModal from '../../../Shared/ui/AddClothesModal.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
@@ -186,10 +186,14 @@ import Profile from '../../profile/ui/Profile.vue';
 
 const selectedClothingIds = ref<string[]>([]);
 const showAddClothesModal = ref(false);
-const { myClothes } = useWardrobeStore();
+const wardrobeStore = useWardrobeStore();
+const { myClothes, standardClothes } = storeToRefs(wardrobeStore);
 
 const clothingById = computed(
-  () => new Map<string, Clothing>([...myClothes.value, ...STANDARD_CLOTHES].map((item) => [item.id, item]))
+  () =>
+    new Map<string, Clothing>(
+      [...myClothes.value, ...standardClothes.value].map((item) => [item.id, item])
+    )
 );
 
 const selectedClothes = computed(() =>
@@ -225,7 +229,9 @@ function toggleClothing(id: string) {
 }
 
 function finishCreation() {
-  $navigateBack();
+  void wardrobeStore.createOutfitFromSelection(selectedClothingIds.value).finally(() => {
+    $navigateBack();
+  });
 }
 
 function openMyOutfits() {

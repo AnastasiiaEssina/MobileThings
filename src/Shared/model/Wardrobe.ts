@@ -36,6 +36,13 @@ export interface OutfitFilterState {
   colorScheme: ColorScheme | 'all';
 }
 
+export interface UserSettings {
+  id: string;
+  language: string;
+  theme: string;
+  notificationsEnabled: boolean;
+}
+
 export function matchesOutfitFilters(outfit: Outfit, filters: OutfitFilterState) {
   const matchStyle = filters.style === 'all' || outfit.style === filters.style;
   const matchSeason = filters.season === 'all' || outfit.season === filters.season;

@@ -11,24 +11,9 @@
         />
 
         <GridLayout columns="*, *, *" class="filters-labels">
-          <Label
-            text="Стиль:"
-            col="0"
-            class="filter-label"
-            :color="COLORS.profileText"
-          />
-          <Label
-            text="Сезон:"
-            col="1"
-            class="filter-label"
-            :color="COLORS.profileText"
-          />
-          <Label
-            text="Гамма:"
-            col="2"
-            class="filter-label"
-            :color="COLORS.profileText"
-          />
+          <Label text="Стиль:" col="0" class="filter-label" :color="COLORS.profileText" />
+          <Label text="Сезон:" col="1" class="filter-label" :color="COLORS.profileText" />
+          <Label text="Гамма:" col="2" class="filter-label" :color="COLORS.profileText" />
         </GridLayout>
 
         <GridLayout columns="*, *, *" class="filters-row">
@@ -145,8 +130,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
+import { storeToRefs } from 'pinia';
 import {
   COLOR_SCHEME_VALUES,
   OUTFIT_STYLE_VALUES,
@@ -154,7 +140,7 @@ import {
   matchesOutfitFilters,
   type OutfitFilterState,
 } from '../../../Shared/model/Wardrobe';
-import { OUTFITS } from '../../../Shared/model/WardrobeData';
+import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import { COLORS } from '../../../Shared/ui/Colors';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
@@ -190,7 +176,9 @@ const colorLabels: Record<(typeof colorOptions)[number], string> = {
   bright: 'Яркая',
 };
 
-const selectedOutfitId = ref(OUTFITS[1]?.id ?? OUTFITS[0]?.id ?? '');
+const wardrobeStore = useWardrobeStore();
+const { outfits } = storeToRefs(wardrobeStore);
+const selectedOutfitId = ref('');
 const activeFilter = ref<FilterKey | null>(null);
 const filters = ref<OutfitFilterState>({
   style: 'all',
@@ -199,7 +187,7 @@ const filters = ref<OutfitFilterState>({
 });
 
 const filteredOutfits = computed(() =>
-  OUTFITS.filter((outfit) => matchesOutfitFilters(outfit, filters.value))
+  outfits.value.filter((outfit) => matchesOutfitFilters(outfit, filters.value))
 );
 
 const styleLabel = computed(() => styleLabels[filters.value.style] ?? 'Любой');
@@ -229,6 +217,16 @@ const activeOptions = computed(() => {
 
   return [];
 });
+
+watch(
+  outfits,
+  (nextOutfits) => {
+    if (!selectedOutfitId.value && nextOutfits.length > 0) {
+      selectedOutfitId.value = nextOutfits[1]?.id ?? nextOutfits[0]?.id ?? '';
+    }
+  },
+  { immediate: true }
+);
 
 function toggleFilter(filter: FilterKey) {
   activeFilter.value = activeFilter.value === filter ? null : filter;
