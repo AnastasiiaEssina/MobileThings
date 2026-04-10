@@ -14,7 +14,7 @@ const pinia = createPinia();
 app.use(pinia);
 app.registerElement('SVGView', () => SVGView);
 
-async function startApp() {
+async function initializeStores() {
   try {
     const authStore = useAuthStore(pinia);
     const wardrobeStore = useWardrobeStore(pinia);
@@ -22,8 +22,7 @@ async function startApp() {
   } catch (error) {
     console.error('Failed to initialize application state', error);
   }
-
-  app.start();
 }
 
-void startApp();
+app.start();
+void initializeStores();
