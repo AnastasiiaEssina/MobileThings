@@ -3,8 +3,7 @@
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="auto, *, auto">
-      <StackLayout row="0" class="header">
-        <Label text="12:30" class="time" :color="COLORS.darkText" />
+      <StackLayout row="0" class="header" @tap="closeActiveFilter">
         <Label
           text="Выберите образ для публикации"
           class="title"
@@ -35,32 +34,51 @@
         <GridLayout columns="*, *, *" class="filters-row">
           <Button
             col="0"
-            text="Любой ▼"
+            :text="`${styleLabel} ▼`"
             class="filter-button"
             :backgroundColor="COLORS.profileButton"
             :color="COLORS.profileText"
+            @tap="toggleFilter('style')"
           />
           <Button
             col="1"
-            text="Любой ▼"
+            :text="`${seasonLabel} ▼`"
             class="filter-button"
             :backgroundColor="COLORS.profileButton"
             :color="COLORS.profileText"
+            @tap="toggleFilter('season')"
           />
           <Button
             col="2"
-            text="Любой ▼"
+            :text="`${colorLabel} ▼`"
             class="filter-button"
             :backgroundColor="COLORS.profileButton"
             :color="COLORS.profileText"
+            @tap="toggleFilter('colorScheme')"
           />
         </GridLayout>
+
+        <StackLayout
+          v-if="activeFilter"
+          class="filter-dropdown"
+          :backgroundColor="COLORS.cardBackground"
+        >
+          <Button
+            v-for="option in activeOptions"
+            :key="option.value"
+            :text="option.label"
+            class="filter-option"
+            :class="{ selected: option.value === activeValue }"
+            :color="COLORS.profileText"
+            @tap="selectFilterOption(option.value)"
+          />
+        </StackLayout>
       </StackLayout>
 
-      <ScrollView row="1">
+      <ScrollView row="1" @tap="closeActiveFilter">
         <WrapLayout class="outfits-grid">
           <GridLayout
-            v-for="item in outfits"
+            v-for="item in filteredOutfits"
             :key="item.id"
             rows="*"
             columns="*"
@@ -71,7 +89,7 @@
             @tap="selectOutfit(item.id)"
           >
             <Image
-              :src="item.image"
+              :src="item.imageUrl"
               stretch="aspectFill"
               class="outfit-image"
             />
@@ -85,7 +103,7 @@
         class="bottom-nav"
         :backgroundColor="COLORS.profileBackground"
       >
-        <GridLayout col="0" class="nav-item">
+        <GridLayout col="0" class="nav-item" @tap="openMyOutfits">
           <SVGView
             src="~/assets/home-alt.svg"
             stretch="aspectFit"
@@ -93,7 +111,7 @@
           />
         </GridLayout>
 
-        <GridLayout col="1" class="nav-item">
+        <GridLayout col="1" class="nav-item" @tap="openMyClothes">
           <SVGView
             src="~/assets/backpack.svg"
             stretch="aspectFit"
@@ -113,6 +131,7 @@
           col="3"
           class="nav-item active"
           :backgroundColor="COLORS.navActiveBackground"
+          @tap="openProfile"
         >
           <SVGView
             src="~/assets/user.svg"
@@ -126,20 +145,125 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { $navigateTo } from 'nativescript-vue';
+import {
+  COLOR_SCHEME_VALUES,
+  OUTFIT_STYLE_VALUES,
+  SEASON_VALUES,
+  matchesOutfitFilters,
+  type OutfitFilterState,
+} from '../../../Shared/model/Wardrobe';
+import { OUTFITS } from '../../../Shared/model/WardrobeData';
 import { COLORS } from '../../../Shared/ui/Colors';
+import MyClothes from '../../MyClothes/ui/MyClothes.vue';
+import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
+import Profile from '../../profile/ui/Profile.vue';
 
-const selectedOutfitId = ref(2);
+type FilterKey = 'style' | 'season' | 'colorScheme';
 
-const outfits = [
-  { id: 1, image: '~/assets/outfit_1.png' },
-  { id: 2, image: '~/assets/outfit 2.png' },
-  { id: 3, image: '~/assets/outfit_1.png' },
-  { id: 4, image: '~/assets/outfit 2.png' },
-];
+const styleOptions = ['all', ...OUTFIT_STYLE_VALUES] as const;
+const seasonOptions = ['all', ...SEASON_VALUES] as const;
+const colorOptions = ['all', ...COLOR_SCHEME_VALUES] as const;
 
-function selectOutfit(id: number) {
+const styleLabels: Record<(typeof styleOptions)[number], string> = {
+  all: 'Любой',
+  casual: 'Кэжуал',
+  business: 'Деловой',
+  sport: 'Спорт',
+  evening: 'Вечер',
+};
+
+const seasonLabels: Record<(typeof seasonOptions)[number], string> = {
+  all: 'Любой',
+  spring: 'Весна',
+  summer: 'Лето',
+  autumn: 'Осень',
+  winter: 'Зима',
+};
+
+const colorLabels: Record<(typeof colorOptions)[number], string> = {
+  all: 'Любая',
+  light: 'Светлая',
+  dark: 'Тёмная',
+  neutral: 'Нейтральная',
+  bright: 'Яркая',
+};
+
+const selectedOutfitId = ref(OUTFITS[1]?.id ?? OUTFITS[0]?.id ?? '');
+const activeFilter = ref<FilterKey | null>(null);
+const filters = ref<OutfitFilterState>({
+  style: 'all',
+  season: 'all',
+  colorScheme: 'all',
+});
+
+const filteredOutfits = computed(() =>
+  OUTFITS.filter((outfit) => matchesOutfitFilters(outfit, filters.value))
+);
+
+const styleLabel = computed(() => styleLabels[filters.value.style] ?? 'Любой');
+const seasonLabel = computed(() => seasonLabels[filters.value.season] ?? 'Любой');
+const colorLabel = computed(() => colorLabels[filters.value.colorScheme] ?? 'Любая');
+
+const activeValue = computed(() => {
+  if (!activeFilter.value) {
+    return '';
+  }
+
+  return filters.value[activeFilter.value];
+});
+
+const activeOptions = computed(() => {
+  if (activeFilter.value === 'style') {
+    return styleOptions.map((value) => ({ value, label: styleLabels[value] }));
+  }
+
+  if (activeFilter.value === 'season') {
+    return seasonOptions.map((value) => ({ value, label: seasonLabels[value] }));
+  }
+
+  if (activeFilter.value === 'colorScheme') {
+    return colorOptions.map((value) => ({ value, label: colorLabels[value] }));
+  }
+
+  return [];
+});
+
+function toggleFilter(filter: FilterKey) {
+  activeFilter.value = activeFilter.value === filter ? null : filter;
+}
+
+function closeActiveFilter() {
+  activeFilter.value = null;
+}
+
+function selectFilterOption(value: string) {
+  if (!activeFilter.value) {
+    return;
+  }
+
+  filters.value = {
+    ...filters.value,
+    [activeFilter.value]: value,
+  };
+  activeFilter.value = null;
+}
+
+function selectOutfit(id: string) {
   selectedOutfitId.value = id;
+}
+
+function openMyOutfits() {
+  $navigateTo(MyOutfits);
+}
+
+function openMyClothes() {
+  $navigateTo(MyClothes);
+}
+
+function openProfile() {
+  $navigateTo(Profile);
 }
 </script>
 
@@ -148,14 +272,10 @@ function selectOutfit(id: number) {
   padding: 12 16 0 16;
 }
 
-.time {
-  font-size: 14;
-  margin-bottom: 44;
-}
-
 .title {
   font-size: 20;
   text-align: center;
+  margin-top: 44;
   margin-bottom: 44;
 }
 
@@ -172,12 +292,32 @@ function selectOutfit(id: number) {
   column-gap: 10;
 }
 
+.filter-dropdown {
+  margin-top: 10;
+  border-radius: 16;
+  padding: 6 0;
+}
+
 .filter-button {
   height: 40;
   border-radius: 20;
   font-size: 14;
   padding: 0;
   text-transform: none;
+}
+
+.filter-option {
+  background-color: transparent;
+  text-transform: none;
+  text-align: left;
+  font-size: 14;
+  height: 36;
+  padding-left: 14;
+  padding-right: 14;
+}
+
+.filter-option.selected {
+  font-weight: 700;
 }
 
 .outfits-grid {

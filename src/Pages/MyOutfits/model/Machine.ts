@@ -1,11 +1,11 @@
 // src/Pages/MyOutfits/model/Machine.ts
-import { Outfit, FilterState } from '../../../Shared/model/FilterTypes';
+import { Outfit, OutfitFilterState, matchesOutfitFilters } from '../../../Shared/model/Wardrobe';
 import { createMachine, assign } from 'xstate';
 
 interface OutfitsContext {
   outfits: Outfit[];
   filteredOutfits: Outfit[];
-  filters: FilterState;
+  filters: OutfitFilterState;
   isLoading: boolean;
   error: string | null;
 }
@@ -14,7 +14,7 @@ type OutfitsEvent =
   | { type: 'FETCH_OUTFITS' }
   | { type: 'FETCH_SUCCESS'; outfits: Outfit[] }
   | { type: 'FETCH_ERROR'; error: string }
-  | { type: 'SET_FILTER'; payload: Partial<FilterState> }
+  | { type: 'SET_FILTER'; payload: Partial<OutfitFilterState> }
   | { type: 'RESET_FILTERS' }
   | { type: 'ADD_OUTFIT'; payload: Outfit }
   | { type: 'DELETE_OUTFIT'; payload: string };
@@ -77,12 +77,9 @@ export const outfitsMachine = createMachine({
         SET_FILTER: {
           actions: assign(({ context, event }) => {
             const newFilters = { ...context.filters, ...event.payload };
-            const newFiltered = context.outfits.filter((outfit) => {
-              const matchStyle = newFilters.style === 'all' || outfit.style === newFilters.style;
-              const matchSeason = newFilters.season === 'all' || outfit.season === newFilters.season;
-              const matchColor = newFilters.colorScheme === 'all' || outfit.colorScheme === newFilters.colorScheme;
-              return matchStyle && matchSeason && matchColor;
-            });
+            const newFiltered = context.outfits.filter((outfit) =>
+              matchesOutfitFilters(outfit, newFilters)
+            );
 
             return {
               filters: newFilters,
@@ -105,10 +102,7 @@ export const outfitsMachine = createMachine({
         ADD_OUTFIT: {
           actions: assign(({ context, event }) => {
             const newOutfits = [...context.outfits, event.payload];
-            const isMatch = 
-              (context.filters.style === 'all' || event.payload.style === context.filters.style) &&
-              (context.filters.season === 'all' || event.payload.season === context.filters.season) &&
-              (context.filters.colorScheme === 'all' || event.payload.colorScheme === context.filters.colorScheme);
+            const isMatch = matchesOutfitFilters(event.payload, context.filters);
 
             return {
               outfits: newOutfits,

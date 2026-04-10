@@ -3,7 +3,6 @@
     <GridLayout rows="auto, *, auto">
       <GridLayout row="0" rows="auto, auto" class="header">
         <GridLayout row="0" columns="*, auto" class="top-bar">
-          <Label col="0" text="12:30" class="time" :color="COLORS.darkText" />
           <GridLayout col="1" class="settings-wrap">
             <SVGView
               src="~/assets/settings.svg"
@@ -41,7 +40,7 @@
             :backgroundColor="COLORS.cardBackground"
           >
             <Image
-              :src="item.image"
+              :src="item.imageUrl"
               stretch="aspectFill"
               class="outfit-image"
             />
@@ -78,7 +77,7 @@
         class="bottom-nav"
         :backgroundColor="COLORS.profileBackground"
       >
-        <GridLayout col="0" class="nav-item">
+        <GridLayout col="0" class="nav-item" @tap="openMyOutfits">
           <SVGView
             src="~/assets/home-alt.svg"
             stretch="aspectFit"
@@ -86,7 +85,7 @@
           />
         </GridLayout>
 
-        <GridLayout col="1" class="nav-item">
+        <GridLayout col="1" class="nav-item" @tap="openMyClothes">
           <SVGView
             src="~/assets/backpack.svg"
             stretch="aspectFit"
@@ -106,6 +105,7 @@
           col="3"
           class="nav-item active"
           :backgroundColor="COLORS.navActiveBackground"
+          @tap="openProfile"
         >
           <SVGView
             src="~/assets/user.svg"
@@ -120,24 +120,28 @@
 
 <script setup lang="ts">
 import { $navigateTo } from 'nativescript-vue';
+import { OUTFITS } from '../../../Shared/model/WardrobeData';
 import { COLORS } from '../../../Shared/ui/Colors';
+import MyClothes from '../../MyClothes/ui/MyClothes.vue';
+import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import selectOutfitToShare from '../../selectOutfitToShare/ui/selectOutfitToShare.vue';
 
-const outfits = [
-  {
-    id: 1,
-    image: '~/assets/outfit_1.png',
-    views: 124,
-  },
-  {
-    id: 2,
-    image: '~/assets/outfit 2.png',
-    views: 98,
-  },
-];
+const outfits = OUTFITS.slice(0, 2);
 
 function openSelectOutfitToShare() {
   $navigateTo(selectOutfitToShare);
+}
+
+function openMyOutfits() {
+  $navigateTo(MyOutfits);
+}
+
+function openMyClothes() {
+  $navigateTo(MyClothes);
+}
+
+function openProfile() {
+  return;
 }
 </script>
 
@@ -149,10 +153,6 @@ function openSelectOutfitToShare() {
 .top-bar {
   margin-bottom: 8;
   vertical-align: middle;
-}
-
-.time {
-  font-size: 14;
 }
 
 .settings-wrap {

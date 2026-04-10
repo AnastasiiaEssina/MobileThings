@@ -134,15 +134,21 @@
 import { ref, computed, onMounted } from 'vue';
 import { useActor } from '@xstate/vue';
 import { outfitsMachine } from '../model/Machine';
-import type { Outfit } from '../../../Shared/model/FilterTypes';
+import {
+  COLOR_SCHEME_VALUES,
+  OUTFIT_STYLE_VALUES,
+  SEASON_VALUES,
+  type Outfit,
+} from '../../../Shared/model/Wardrobe';
+import { OUTFITS } from '../../../Shared/model/WardrobeData';
 
 const { snapshot: state, send } = useActor(outfitsMachine);
 
 const showAddModal = ref(false);
 
-const styleOptions = ['all', 'casual', 'business', 'sport', 'evening'];
-const seasonOptions = ['all', 'spring', 'summer', 'autumn', 'winter'];
-const colorOptions = ['all', 'light', 'dark', 'neutral', 'bright'];
+const styleOptions = ['all', ...OUTFIT_STYLE_VALUES];
+const seasonOptions = ['all', ...SEASON_VALUES];
+const colorOptions = ['all', ...COLOR_SCHEME_VALUES];
 
 const styleIndex = computed(() =>
   styleOptions.indexOf(state.value.context.filters.style)
@@ -205,6 +211,7 @@ const fetchOutfits = () => {
         season: 'winter',
         colorScheme: 'light',
         imageUrl: 'https://picsum.photos/id/1/300/300',
+        views: 0,
       },
       {
         id: '2',
@@ -214,6 +221,7 @@ const fetchOutfits = () => {
         season: 'autumn',
         colorScheme: 'dark',
         imageUrl: 'https://picsum.photos/id/2/300/300',
+        views: 0,
       },
       {
         id: '3',
@@ -223,10 +231,11 @@ const fetchOutfits = () => {
         season: 'spring',
         colorScheme: 'neutral',
         imageUrl: 'https://picsum.photos/id/3/300/300',
+        views: 0,
       },
     ];
 
-    send({ type: 'FETCH_SUCCESS', outfits: mockOutfits });
+    send({ type: 'FETCH_SUCCESS', outfits: OUTFITS });
   }, 1000);
 };
 
@@ -250,6 +259,7 @@ const handleAddOutfit = () => {
     season: seasonOptions[newSeasonIndex.value] as Outfit['season'],
     colorScheme: colorOptions[newColorIndex.value] as Outfit['colorScheme'],
     imageUrl: newImageUrl.value.trim() || 'https://picsum.photos/300/300',
+    views: 0,
   };
 
   send({ type: 'ADD_OUTFIT', payload: outfit });
