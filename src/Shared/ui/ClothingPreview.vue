@@ -41,6 +41,10 @@ const emojiClass = computed(() => `emoji-${props.size}`);
 
 <style scoped>
 .preview-shell {
+  background-color: #e4eaed;
+  border-width: 1;
+  border-color: #cbd2d7;
+  border-radius: 14;
   horizontal-align: center;
   vertical-align: middle;
 }
@@ -60,25 +64,41 @@ const emojiClass = computed(() => `emoji-${props.size}`);
   vertical-align: middle;
 }
 
-.shell-xs,
-.image-xs {
+.shell-xs {
   width: 42;
   height: 42;
 }
 
-.shell-sm,
-.image-sm {
+.image-xs {
+  width: 36;
+  height: 36;
+}
+
+.shell-sm {
   width: 56;
   height: 56;
 }
 
-.shell-md,
-.image-md {
+.image-sm {
+  width: 48;
+  height: 48;
+}
+
+.shell-md {
   width: 60;
   height: 60;
 }
 
-.shell-lg,
+.image-md {
+  width: 52;
+  height: 52;
+}
+
+.shell-lg {
+  width: 132;
+  height: 132;
+}
+
 .image-lg {
   width: 124;
   height: 124;

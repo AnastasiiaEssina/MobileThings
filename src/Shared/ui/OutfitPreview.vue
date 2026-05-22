@@ -1,39 +1,70 @@
 <template>
   <GridLayout class="preview-shell" :class="shellClass" :backgroundColor="COLORS.cardBackground">
-    <GridLayout
-      v-if="items.length"
-      class="preview-grid"
-      :class="gridClass"
-      :columns="columnsTemplate"
-      :rows="rowsTemplate"
-    >
+    <GridLayout v-if="items.length" class="preview-board" :class="boardClass" rows="*, auto">
       <GridLayout
-        v-for="(item, index) in items"
-        :key="item.id"
-        :row="getRow(index)"
-        :col="getColumn(index)"
-        class="preview-piece"
-        :margin="gap / 2"
-        :width="cellSize"
-        :height="cellSize"
+        row="0"
+        class="preview-piece featured-piece"
+        :width="heroSize"
+        :height="heroSize"
       >
         <Image
-          v-if="item.imageUrl"
-          :src="item.imageUrl"
+          v-if="items[0].imageUrl"
+          :src="items[0].imageUrl"
           loadMode="async"
           stretch="aspectFit"
-          :width="innerCellSize"
-          :height="innerCellSize"
+          :width="heroImageSize"
+          :height="heroImageSize"
           class="preview-image"
         />
         <GridLayout
           v-else
           class="preview-placeholder"
-          :backgroundColor="item.fillColor || COLORS.cardBackground"
-          :width="innerCellSize"
-          :height="innerCellSize"
+          :backgroundColor="items[0].fillColor || COLORS.cardBackground"
+          :width="heroImageSize"
+          :height="heroImageSize"
         >
-          <Label :text="item.emoji || '👕'" class="preview-emoji" :fontSize="emojiFontSize" />
+          <Label :text="items[0].emoji || '👕'" class="preview-emoji" :fontSize="heroEmojiSize" />
+        </GridLayout>
+      </GridLayout>
+
+      <GridLayout
+        v-if="supportItems.length"
+        row="1"
+        class="support-strip"
+        :columns="supportColumns"
+      >
+        <GridLayout
+          v-for="(item, index) in supportItems"
+          :key="item.id"
+          :col="index"
+          class="preview-piece support-piece"
+          :width="supportSize"
+          :height="supportSize"
+        >
+          <Image
+            v-if="item.imageUrl"
+            :src="item.imageUrl"
+            loadMode="async"
+            stretch="aspectFit"
+            :width="supportImageSize"
+            :height="supportImageSize"
+            class="preview-image"
+          />
+          <GridLayout
+            v-else
+            class="preview-placeholder"
+            :backgroundColor="item.fillColor || COLORS.cardBackground"
+            :width="supportImageSize"
+            :height="supportImageSize"
+          >
+            <Label :text="item.emoji || '👕'" class="preview-emoji" :fontSize="supportEmojiSize" />
+          </GridLayout>
+
+          <Label
+            v-if="hiddenItemCount && index === supportItems.length - 1"
+            :text="`+${hiddenItemCount}`"
+            class="hidden-count"
+          />
         </GridLayout>
       </GridLayout>
     </GridLayout>
@@ -56,28 +87,34 @@ type PreviewVariant = 'tiny' | 'card' | 'large';
 
 const VARIANT_CONFIG: Record<
   PreviewVariant,
-  { width: number; height: number; paddingX: number; paddingY: number; gap: number }
+  {
+    width: number;
+    height: number;
+    padding: number;
+    heroSize: number;
+    supportSize: number;
+  }
 > = {
   tiny: {
     width: 136,
     height: 136,
-    paddingX: 10,
-    paddingY: 10,
-    gap: 4,
+    padding: 10,
+    heroSize: 68,
+    supportSize: 38,
   },
   card: {
     width: 188,
     height: 188,
-    paddingX: 12,
-    paddingY: 12,
-    gap: 6,
+    padding: 12,
+    heroSize: 96,
+    supportSize: 54,
   },
   large: {
     width: 316,
     height: 336,
-    paddingX: 18,
-    paddingY: 18,
-    gap: 8,
+    padding: 18,
+    heroSize: 184,
+    supportSize: 76,
   },
 };
 
@@ -93,68 +130,50 @@ const props = withDefaults(
 
 const config = computed(() => VARIANT_CONFIG[props.variant]);
 const shellClass = computed(() => `shell-${props.variant}`);
-const gridClass = computed(() => `grid-${props.variant}`);
-const itemCount = computed(() => props.items.length);
-const columns = computed(() => {
-  if (itemCount.value <= 1) {
-    return 1;
-  }
-
-  return Math.ceil(Math.sqrt(itemCount.value));
-});
-const rows = computed(() => {
-  if (itemCount.value === 0) {
-    return 0;
-  }
-
-  return Math.ceil(itemCount.value / columns.value);
-});
-const columnsTemplate = computed(() => Array.from({ length: columns.value }, () => 'auto').join(','));
-const rowsTemplate = computed(() => Array.from({ length: rows.value }, () => 'auto').join(','));
-const gap = computed(() => config.value.gap);
-const cellSize = computed(() => {
-  if (itemCount.value === 0) {
-    return 0;
-  }
-
-  const availableWidth =
-    config.value.width - config.value.paddingX * 2 - Math.max(columns.value - 1, 0) * gap.value;
-  const availableHeight =
-    config.value.height - config.value.paddingY * 2 - Math.max(rows.value - 1, 0) * gap.value;
-  const nextSize = Math.floor(
-    Math.min(availableWidth / columns.value, availableHeight / rows.value)
-  );
-
-  return Math.max(nextSize, 14);
-});
-const innerCellSize = computed(() => {
-  const inset = props.variant === 'large' ? 10 : 8;
-  return Math.max(cellSize.value - inset, 10);
-});
-const emojiFontSize = computed(() => Math.max(Math.floor(innerCellSize.value * 0.48), 10));
-
-function getRow(index: number) {
-  return Math.floor(index / columns.value);
-}
-
-function getColumn(index: number) {
-  return index % columns.value;
-}
+const boardClass = computed(() => `board-${props.variant}`);
+const supportItems = computed(() => props.items.slice(1, 4));
+const hiddenItemCount = computed(() => Math.max(props.items.length - 4, 0));
+const supportColumns = computed(() => supportItems.value.map(() => '*').join(','));
+const heroSize = computed(() => config.value.heroSize);
+const supportSize = computed(() => config.value.supportSize);
+const heroImageSize = computed(() => config.value.heroSize - (props.variant === 'large' ? 16 : 10));
+const supportImageSize = computed(() => config.value.supportSize - (props.variant === 'tiny' ? 6 : 10));
+const heroEmojiSize = computed(() => Math.max(Math.floor(heroImageSize.value * 0.48), 10));
+const supportEmojiSize = computed(() => Math.max(Math.floor(supportImageSize.value * 0.48), 10));
 </script>
 
 <style scoped>
 .preview-shell {
+  border-width: 1;
+  border-color: #d3d8dc;
   border-radius: 16;
 }
 
-.preview-grid {
+.preview-board {
   horizontal-align: center;
   vertical-align: middle;
 }
 
 .preview-piece {
+  background-color: #e4eaed;
+  border-width: 1;
+  border-color: #cbd2d7;
+  border-radius: 14;
   horizontal-align: center;
   vertical-align: middle;
+}
+
+.featured-piece {
+  margin-bottom: 8;
+}
+
+.support-strip {
+  horizontal-align: center;
+}
+
+.support-piece {
+  margin: 0 4;
+  border-radius: 12;
 }
 
 .preview-image,
@@ -177,7 +196,7 @@ function getColumn(index: number) {
   height: 136;
 }
 
-.grid-tiny {
+.board-tiny {
   padding: 10;
 }
 
@@ -186,7 +205,7 @@ function getColumn(index: number) {
   height: 188;
 }
 
-.grid-card {
+.board-card {
   padding: 12;
 }
 
@@ -195,8 +214,21 @@ function getColumn(index: number) {
   height: 336;
 }
 
-.grid-large {
+.board-large {
   padding: 18;
+}
+
+.hidden-count {
+  min-width: 22;
+  height: 22;
+  border-radius: 11;
+  background-color: #7e1a2b;
+  color: #ffffff;
+  font-size: 11;
+  text-align: center;
+  horizontal-align: right;
+  vertical-align: bottom;
+  margin: 0 3 3 0;
 }
 
 .empty-label {
