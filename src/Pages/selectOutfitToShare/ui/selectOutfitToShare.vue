@@ -10,6 +10,21 @@
           :color="COLORS.profileText"
         />
 
+        <Button
+          text="Опубликовать выбранный"
+          class="publish-button"
+          :isEnabled="Boolean(selectedOutfit) && !isPublishing"
+          :backgroundColor="COLORS.profileButton"
+          :color="COLORS.profileText"
+          @tap="publishSelectedOutfit"
+        />
+        <Label
+          v-if="publishStatus"
+          :text="publishStatus"
+          class="publish-status"
+          :color="COLORS.mutedText"
+        />
+
         <GridLayout columns="*, *, *" class="filters-labels">
           <Label text="Стиль:" col="0" class="filter-label" :color="COLORS.profileText" />
           <Label text="Сезон:" col="1" class="filter-label" :color="COLORS.profileText" />
@@ -92,7 +107,7 @@
           <SVGView src="~/assets/backpack.svg" stretch="aspectFit" class="nav-svg backpack-icon" />
         </GridLayout>
 
-        <GridLayout col="2" class="nav-item">
+        <GridLayout col="2" class="nav-item" @tap="openFeed">
           <SVGView src="~/assets/thumb-up.svg" stretch="aspectFit" class="nav-svg thumbs-icon" />
         </GridLayout>
 
@@ -132,10 +147,13 @@ import {
   matchesOutfitFilters,
   type OutfitFilterState,
 } from '../../../Shared/model/Wardrobe';
+import { publishOutfit } from '../../../Shared/model/api/SocialApi';
+import { useAuthStore } from '../../../Shared/model/AuthStore';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import { COLORS } from '../../../Shared/ui/Colors';
 import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
+import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import Profile from '../../profile/ui/Profile.vue';
@@ -143,6 +161,7 @@ import Profile from '../../profile/ui/Profile.vue';
 type FilterKey = 'style' | 'season' | 'colorScheme';
 
 const wardrobeStore = useWardrobeStore();
+const authStore = useAuthStore();
 const { outfits } = storeToRefs(wardrobeStore);
 
 const styleOptions = ['all', ...OUTFIT_STYLE_VALUES] as const;
@@ -152,6 +171,8 @@ const colorOptions = ['all', ...COLOR_SCHEME_VALUES] as const;
 const selectedOutfitId = ref('');
 const infoOutfitId = ref<string | null>(null);
 const activeFilter = ref<FilterKey | null>(null);
+const isPublishing = ref(false);
+const publishStatus = ref('');
 const filters = ref<OutfitFilterState>({
   style: 'all',
   season: 'all',
@@ -160,6 +181,9 @@ const filters = ref<OutfitFilterState>({
 
 const filteredOutfits = computed(() =>
   outfits.value.filter((outfit) => matchesOutfitFilters(outfit, filters.value))
+);
+const selectedOutfit = computed(() =>
+  outfits.value.find((outfit) => outfit.id === selectedOutfitId.value)
 );
 
 const styleLabel = computed(() => OUTFIT_STYLE_LABELS[filters.value.style] ?? 'Любой');
@@ -249,6 +273,32 @@ function closeOutfitDetails() {
   infoOutfitId.value = null;
 }
 
+function getErrorText(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function publishSelectedOutfit() {
+  if (!selectedOutfit.value || isPublishing.value) {
+    return;
+  }
+
+  isPublishing.value = true;
+  publishStatus.value = '';
+
+  try {
+    await publishOutfit(
+      authStore.accessToken,
+      selectedOutfit.value,
+      wardrobeStore.getOutfitItems(selectedOutfit.value)
+    );
+    publishStatus.value = 'Образ появился в ленте.';
+  } catch (error) {
+    publishStatus.value = getErrorText(error);
+  } finally {
+    isPublishing.value = false;
+  }
+}
+
 function openMyOutfits() {
   $navigateTo(MyOutfits);
 }
@@ -259,6 +309,10 @@ function openMyClothes() {
 
 function openProfile() {
   $navigateTo(Profile);
+}
+
+function openFeed() {
+  $navigateTo(Feed);
 }
 </script>
 
@@ -271,7 +325,22 @@ function openProfile() {
   font-size: 20;
   text-align: center;
   margin-top: 44;
-  margin-bottom: 44;
+  margin-bottom: 18;
+}
+
+.publish-button {
+  height: 42;
+  border-radius: 21;
+  font-size: 15;
+  margin-bottom: 10;
+  padding: 0;
+  text-transform: none;
+}
+
+.publish-status {
+  margin-bottom: 18;
+  font-size: 13;
+  text-align: center;
 }
 
 .filters-labels {

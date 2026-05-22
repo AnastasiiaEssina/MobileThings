@@ -148,7 +148,7 @@
           />
         </GridLayout>
 
-        <GridLayout col="2" class="nav-item">
+        <GridLayout col="2" class="nav-item" @tap="openFeed">
           <SVGView
             src="~/assets/thumb-up.svg"
             stretch="aspectFit"
@@ -183,6 +183,7 @@ import type { Clothing } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import AddClothesModal from '../../../Shared/ui/AddClothesModal.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
+import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import Profile from '../../profile/ui/Profile.vue';
@@ -247,6 +248,10 @@ function openMyClothes() {
 
 function openProfile() {
   $navigateTo(Profile);
+}
+
+function openFeed() {
+  $navigateTo(Feed);
 }
 </script>
 

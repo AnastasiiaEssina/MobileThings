@@ -8,14 +8,14 @@ type AuthResponse = {
   error?: string;
 };
 
+import { API_BASE_URL } from './ApiConfig';
+
 export type SessionPayload = {
   accessToken: string;
   refreshToken: string;
   email: string;
   expiresAt: string;
 };
-
-const API_BASE_URL = 'http://185.195.25.111:5000';
 
 async function requestAuth(path: string, body: Record<string, string>): Promise<SessionPayload> {
   let response: Response;

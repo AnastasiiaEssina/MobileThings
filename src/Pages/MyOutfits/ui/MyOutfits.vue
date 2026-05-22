@@ -120,7 +120,7 @@
           />
         </GridLayout>
 
-        <GridLayout col="2" class="nav-item">
+        <GridLayout col="2" class="nav-item" @tap="openFeed">
           <SVGView
             src="~/assets/thumb-up.svg"
             stretch="aspectFit"
@@ -158,6 +158,7 @@ import { COLORS } from '../../../Shared/ui/Colors';
 import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import CreateOutfit from '../../CreateOutfit/ui/CreateOutfit.vue';
+import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import { outfitsMachine } from '../model/Machine';
 import Profile from '../../profile/ui/Profile.vue';
@@ -315,6 +316,10 @@ function openMyClothes() {
 
 function openProfile() {
   $navigateTo(Profile);
+}
+
+function openFeed() {
+  $navigateTo(Feed);
 }
 </script>
 
