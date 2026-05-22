@@ -16,29 +16,50 @@
         <Label text="Название" class="field-label" :color="COLORS.profileText" />
         <TextField v-model="draftName" class="field-input" />
 
-        <Label text="Категория" class="field-label" :color="COLORS.profileText" />
-        <ListPicker
-          class="field-picker"
-          :items="categoryPickerItems"
-          :selectedIndex="categoryIndex"
-          @selectedIndexChange="onCategoryChange"
+        <GridLayout rows="auto, auto, auto" columns="auto, *" class="metadata-summary">
+          <Label row="0" col="0" text="Категория" class="summary-label" :color="COLORS.profileText" />
+          <Label row="0" col="1" :text="categoryLabel" class="summary-value" :color="COLORS.mutedText" />
+
+          <Label row="1" col="0" text="Сезон" class="summary-label" :color="COLORS.profileText" />
+          <Label row="1" col="1" :text="seasonLabel" class="summary-value" :color="COLORS.mutedText" />
+
+          <Label row="2" col="0" text="Гамма" class="summary-label" :color="COLORS.profileText" />
+          <Label row="2" col="1" :text="colorLabel" class="summary-value" :color="COLORS.mutedText" />
+        </GridLayout>
+
+        <Button
+          :text="isEditingMetadata ? 'Скрыть параметры' : 'Изменить параметры'"
+          class="metadata-button"
+          :backgroundColor="COLORS.cardBackground"
+          :color="COLORS.profileText"
+          @tap="isEditingMetadata = !isEditingMetadata"
         />
 
-        <Label text="Сезон" class="field-label" :color="COLORS.profileText" />
-        <ListPicker
-          class="field-picker"
-          :items="seasonPickerItems"
-          :selectedIndex="seasonIndex"
-          @selectedIndexChange="onSeasonChange"
-        />
+        <StackLayout v-if="isEditingMetadata" class="metadata-fields">
+          <Label text="Категория" class="field-label" :color="COLORS.profileText" />
+          <ListPicker
+            class="field-picker"
+            :items="categoryPickerItems"
+            :selectedIndex="categoryIndex"
+            @selectedIndexChange="onCategoryChange"
+          />
 
-        <Label text="Гамма" class="field-label" :color="COLORS.profileText" />
-        <ListPicker
-          class="field-picker"
-          :items="colorPickerItems"
-          :selectedIndex="colorIndex"
-          @selectedIndexChange="onColorChange"
-        />
+          <Label text="Сезон" class="field-label" :color="COLORS.profileText" />
+          <ListPicker
+            class="field-picker"
+            :items="seasonPickerItems"
+            :selectedIndex="seasonIndex"
+            @selectedIndexChange="onSeasonChange"
+          />
+
+          <Label text="Гамма" class="field-label" :color="COLORS.profileText" />
+          <ListPicker
+            class="field-picker"
+            :items="colorPickerItems"
+            :selectedIndex="colorIndex"
+            @selectedIndexChange="onColorChange"
+          />
+        </StackLayout>
 
         <Label text="Входит в образы" class="field-label" :color="COLORS.profileText" />
         <StackLayout class="related-list">
@@ -127,6 +148,7 @@ const draftName = ref('');
 const draftCategory = ref<Clothing['category']>('tops');
 const draftSeason = ref<Clothing['season']>('summer');
 const draftColorScheme = ref<Clothing['colorScheme']>('light');
+const isEditingMetadata = ref(false);
 
 const categoryPickerItems = CLOTHING_CATEGORY_VALUES.map((value) => CLOTHING_CATEGORY_LABELS[value]);
 const seasonPickerItems = SEASON_VALUES.map((value) => SEASON_LABELS[value]);
@@ -135,6 +157,9 @@ const colorPickerItems = COLOR_SCHEME_VALUES.map((value) => COLOR_SCHEME_LABELS[
 const categoryIndex = computed(() => CLOTHING_CATEGORY_VALUES.indexOf(draftCategory.value));
 const seasonIndex = computed(() => SEASON_VALUES.indexOf(draftSeason.value));
 const colorIndex = computed(() => COLOR_SCHEME_VALUES.indexOf(draftColorScheme.value));
+const categoryLabel = computed(() => CLOTHING_CATEGORY_LABELS[draftCategory.value]);
+const seasonLabel = computed(() => SEASON_LABELS[draftSeason.value]);
+const colorLabel = computed(() => COLOR_SCHEME_LABELS[draftColorScheme.value]);
 const isStandardClothing = computed(() => props.clothing?.source === 'standard');
 const canDelete = computed(() => !isStandardClothing.value && props.relatedOutfits.length === 0);
 const deleteHint = computed(() => {
@@ -160,6 +185,7 @@ watch(
     draftCategory.value = nextClothing.category;
     draftSeason.value = nextClothing.season;
     draftColorScheme.value = nextClothing.colorScheme;
+    isEditingMetadata.value = false;
   },
   { immediate: true }
 );
@@ -247,6 +273,40 @@ function emitClose() {
 .field-picker {
   background-color: #ffffff;
   border-radius: 12;
+}
+
+.metadata-summary {
+  margin-top: 14;
+  padding: 10 12;
+  border-radius: 12;
+  background-color: #ffffff;
+}
+
+.summary-label,
+.summary-value {
+  font-size: 13;
+  margin: 3 0;
+}
+
+.summary-label {
+  font-weight: 600;
+  margin-right: 12;
+}
+
+.summary-value {
+  text-align: right;
+}
+
+.metadata-button {
+  height: 38;
+  margin-top: 10;
+  border-radius: 19;
+  font-size: 14;
+  text-transform: none;
+}
+
+.metadata-fields {
+  margin-top: 2;
 }
 
 .related-list {
