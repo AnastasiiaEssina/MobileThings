@@ -37,28 +37,46 @@
 
         <StackLayout v-if="isEditingMetadata" class="metadata-fields">
           <Label text="Категория" class="field-label" :color="COLORS.profileText" />
-          <ListPicker
-            class="field-picker"
-            :items="categoryPickerItems"
-            :selectedIndex="categoryIndex"
-            @selectedIndexChange="onCategoryChange"
-          />
+          <WrapLayout class="choice-grid">
+            <Button
+              v-for="option in categoryOptions"
+              :key="option.value"
+              :text="option.label"
+              class="choice-button"
+              :class="{ active: draftCategory === option.value }"
+              :backgroundColor="draftCategory === option.value ? COLORS.profileText : COLORS.cardBackground"
+              :color="draftCategory === option.value ? COLORS.background : COLORS.profileText"
+              @tap="draftCategory = option.value"
+            />
+          </WrapLayout>
 
           <Label text="Сезон" class="field-label" :color="COLORS.profileText" />
-          <ListPicker
-            class="field-picker"
-            :items="seasonPickerItems"
-            :selectedIndex="seasonIndex"
-            @selectedIndexChange="onSeasonChange"
-          />
+          <WrapLayout class="choice-grid">
+            <Button
+              v-for="option in seasonOptions"
+              :key="option.value"
+              :text="option.label"
+              class="choice-button"
+              :class="{ active: draftSeason === option.value }"
+              :backgroundColor="draftSeason === option.value ? COLORS.profileText : COLORS.cardBackground"
+              :color="draftSeason === option.value ? COLORS.background : COLORS.profileText"
+              @tap="draftSeason = option.value"
+            />
+          </WrapLayout>
 
           <Label text="Гамма" class="field-label" :color="COLORS.profileText" />
-          <ListPicker
-            class="field-picker"
-            :items="colorPickerItems"
-            :selectedIndex="colorIndex"
-            @selectedIndexChange="onColorChange"
-          />
+          <WrapLayout class="choice-grid">
+            <Button
+              v-for="option in colorOptions"
+              :key="option.value"
+              :text="option.label"
+              class="choice-button"
+              :class="{ active: draftColorScheme === option.value }"
+              :backgroundColor="draftColorScheme === option.value ? COLORS.profileText : COLORS.cardBackground"
+              :color="draftColorScheme === option.value ? COLORS.background : COLORS.profileText"
+              @tap="draftColorScheme = option.value"
+            />
+          </WrapLayout>
         </StackLayout>
 
         <Label text="Входит в образы" class="field-label" :color="COLORS.profileText" />
@@ -150,13 +168,18 @@ const draftSeason = ref<Clothing['season']>('summer');
 const draftColorScheme = ref<Clothing['colorScheme']>('light');
 const isEditingMetadata = ref(false);
 
-const categoryPickerItems = CLOTHING_CATEGORY_VALUES.map((value) => CLOTHING_CATEGORY_LABELS[value]);
-const seasonPickerItems = SEASON_VALUES.map((value) => SEASON_LABELS[value]);
-const colorPickerItems = COLOR_SCHEME_VALUES.map((value) => COLOR_SCHEME_LABELS[value]);
-
-const categoryIndex = computed(() => CLOTHING_CATEGORY_VALUES.indexOf(draftCategory.value));
-const seasonIndex = computed(() => SEASON_VALUES.indexOf(draftSeason.value));
-const colorIndex = computed(() => COLOR_SCHEME_VALUES.indexOf(draftColorScheme.value));
+const categoryOptions = CLOTHING_CATEGORY_VALUES.map((value) => ({
+  value,
+  label: CLOTHING_CATEGORY_LABELS[value],
+}));
+const seasonOptions = SEASON_VALUES.map((value) => ({
+  value,
+  label: SEASON_LABELS[value],
+}));
+const colorOptions = COLOR_SCHEME_VALUES.map((value) => ({
+  value,
+  label: COLOR_SCHEME_LABELS[value],
+}));
 const categoryLabel = computed(() => CLOTHING_CATEGORY_LABELS[draftCategory.value]);
 const seasonLabel = computed(() => SEASON_LABELS[draftSeason.value]);
 const colorLabel = computed(() => COLOR_SCHEME_LABELS[draftColorScheme.value]);
@@ -189,22 +212,6 @@ watch(
   },
   { immediate: true }
 );
-
-function getPickerIndex(args: { object?: { selectedIndex?: number } }) {
-  return args?.object?.selectedIndex ?? 0;
-}
-
-function onCategoryChange(args: { object?: { selectedIndex?: number } }) {
-  draftCategory.value = CLOTHING_CATEGORY_VALUES[getPickerIndex(args)] ?? draftCategory.value;
-}
-
-function onSeasonChange(args: { object?: { selectedIndex?: number } }) {
-  draftSeason.value = SEASON_VALUES[getPickerIndex(args)] ?? draftSeason.value;
-}
-
-function onColorChange(args: { object?: { selectedIndex?: number } }) {
-  draftColorScheme.value = COLOR_SCHEME_VALUES[getPickerIndex(args)] ?? draftColorScheme.value;
-}
 
 async function saveChanges() {
   if (!props.clothing) {
@@ -269,8 +276,7 @@ function emitClose() {
   font-weight: 600;
 }
 
-.field-input,
-.field-picker {
+.field-input {
   background-color: #ffffff;
   border-radius: 12;
 }
@@ -307,6 +313,24 @@ function emitClose() {
 
 .metadata-fields {
   margin-top: 2;
+}
+
+.choice-grid {
+  margin: 0 -4 2 -4;
+}
+
+.choice-button {
+  width: 122;
+  height: 34;
+  margin: 4;
+  border-radius: 17;
+  font-size: 12;
+  padding: 0 6;
+  text-transform: none;
+}
+
+.choice-button.active {
+  font-weight: 700;
 }
 
 .related-list {
