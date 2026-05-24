@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { refreshUserSession } from './api/AuthApi';
+import { createGuestSession, refreshUserSession } from './api/AuthApi';
 import {
   clearStoredSession,
   getStoredSession,
@@ -12,6 +12,8 @@ type SessionInput = {
   accessToken?: string | null;
   refreshToken?: string | null;
   email?: string | null;
+  name?: string | null;
+  isGuest?: boolean | null;
   expiresAt?: string | null;
 };
 
@@ -25,6 +27,8 @@ function normalizeSession(session: SessionInput): StoredSession {
     accessToken: normalizeValue(session.accessToken),
     refreshToken: normalizeValue(session.refreshToken),
     email: normalizeValue(session.email),
+    name: normalizeValue(session.name),
+    isGuest: Boolean(session.isGuest),
     expiresAt: normalizeValue(session.expiresAt),
   };
 }
@@ -33,6 +37,8 @@ export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(null);
   const refreshToken = ref<string | null>(null);
   const email = ref<string | null>(null);
+  const name = ref<string | null>(null);
+  const isGuest = ref(false);
   const expiresAt = ref<string | null>(null);
   const isHydrated = ref(false);
   const isRefreshing = ref(false);
@@ -43,6 +49,8 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = nextSession.accessToken;
     refreshToken.value = nextSession.refreshToken;
     email.value = nextSession.email;
+    name.value = nextSession.name;
+    isGuest.value = nextSession.isGuest;
     expiresAt.value = nextSession.expiresAt;
   }
 
@@ -51,6 +59,8 @@ export const useAuthStore = defineStore('auth', () => {
       accessToken: accessToken.value,
       refreshToken: refreshToken.value,
       email: email.value,
+      name: name.value,
+      isGuest: isGuest.value,
       expiresAt: expiresAt.value,
     });
   }
@@ -67,17 +77,20 @@ export const useAuthStore = defineStore('auth', () => {
     isHydrated.value = true;
   }
 
-  function continueAsGuest() {
-    setSession({
-      accessToken: `guest-token-${Date.now()}`,
-      email: 'guest@local',
-    });
+  async function continueAsGuest() {
+    const session = await createGuestSession();
+    setSession(session);
   }
 
   async function initialize() {
     applySession(getStoredSession());
 
     if (!refreshToken.value) {
+      if (accessToken.value) {
+        logout();
+        return;
+      }
+
       isHydrated.value = true;
       return;
     }
@@ -99,6 +112,8 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken,
     refreshToken,
     email,
+    name,
+    isGuest,
     expiresAt,
     isHydrated,
     isRefreshing,

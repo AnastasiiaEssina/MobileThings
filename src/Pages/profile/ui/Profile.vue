@@ -24,13 +24,21 @@
             stretch="aspectFill"
             class="avatar"
           />
-          <Label text="Каролина" class="username" :color="COLORS.profileText" />
+          <Label :text="displayName" class="username" :color="COLORS.profileText" />
+          <Label :text="profileCaption" class="profile-caption" :color="COLORS.mutedText" />
           <Button
             text="Опубликовать образ"
             class="publish-btn"
             :backgroundColor="COLORS.profileButton"
             :color="COLORS.profileText"
             @tap="openSelectOutfitToShare"
+          />
+          <Button
+            text="Выйти"
+            class="logout-btn"
+            :backgroundColor="COLORS.navActiveBackground"
+            :color="COLORS.profileText"
+            @tap="logout"
           />
         </StackLayout>
       </GridLayout>
@@ -143,14 +151,20 @@ import {
 import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
+import { useAuthStore } from '../../../Shared/model/AuthStore';
 import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import selectOutfitToShare from '../../selectOutfitToShare/ui/selectOutfitToShare.vue';
 
+const authStore = useAuthStore();
 const wardrobeStore = useWardrobeStore();
 const { outfits: allOutfits } = storeToRefs(wardrobeStore);
 const outfits = computed(() => allOutfits.value);
+const displayName = computed(() => authStore.name || authStore.email || 'Пользователь');
+const profileCaption = computed(() =>
+  authStore.isGuest ? 'Гостевой аккаунт' : authStore.email || 'Аккаунт Things'
+);
 const selectedOutfitId = ref<string | null>(null);
 const handleAndroidBack: AndroidBackHandler = (args) => {
   args.cancel = true;
@@ -206,6 +220,10 @@ function closeOutfitDetails() {
 function getOutfitItems(outfit: Outfit) {
   return wardrobeStore.getOutfitItems(outfit);
 }
+
+function logout() {
+  authStore.logout();
+}
 </script>
 
 <style scoped>
@@ -250,12 +268,27 @@ function getOutfitItems(outfit: Outfit) {
   text-align: center;
 }
 
+.profile-caption {
+  margin-top: 4;
+  font-size: 13;
+  text-align: center;
+}
+
 .publish-btn {
   margin-top: 12;
   width: 336;
   height: 42;
   border-radius: 21;
   font-size: 16;
+  padding: 0;
+}
+
+.logout-btn {
+  margin-top: 8;
+  width: 188;
+  height: 36;
+  border-radius: 18;
+  font-size: 14;
   padding: 0;
 }
 

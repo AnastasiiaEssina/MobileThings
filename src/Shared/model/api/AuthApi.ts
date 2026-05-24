@@ -1,23 +1,27 @@
+import { API_BASE_URL } from './ApiConfig';
+
 type AuthResponse = {
   access_token: string;
   refresh_token: string;
   expires_in: number;
   user: {
     email: string;
+    name: string;
+    is_guest: boolean;
   };
   error?: string;
 };
-
-import { API_BASE_URL } from './ApiConfig';
 
 export type SessionPayload = {
   accessToken: string;
   refreshToken: string;
   email: string;
+  name: string;
+  isGuest: boolean;
   expiresAt: string;
 };
 
-async function requestAuth(path: string, body: Record<string, string>): Promise<SessionPayload> {
+async function requestAuth(path: string, body: Record<string, string> = {}): Promise<SessionPayload> {
   let response: Response;
 
   try {
@@ -46,12 +50,22 @@ async function requestAuth(path: string, body: Record<string, string>): Promise<
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
     email: data.user?.email ?? '',
+    name: data.user?.name ?? '',
+    isGuest: Boolean(data.user?.is_guest),
     expiresAt,
   };
 }
 
 export function loginUser(email: string, password: string) {
   return requestAuth('/auth/login', { email, password });
+}
+
+export function registerUser(email: string, password: string, name: string) {
+  return requestAuth('/auth/register', { email, password, name });
+}
+
+export function createGuestSession() {
+  return requestAuth('/auth/guest');
 }
 
 export function refreshUserSession(refreshToken: string) {

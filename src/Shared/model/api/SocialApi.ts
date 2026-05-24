@@ -37,7 +37,7 @@ type FeedResponse = {
 
 function validToken(accessToken?: string | null) {
   const token = accessToken?.trim() ?? '';
-  return token && !token.startsWith('guest-token-') ? token : '';
+  return token;
 }
 
 async function requestJson<T>(

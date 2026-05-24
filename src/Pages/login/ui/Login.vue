@@ -2,17 +2,47 @@
   <Page :backgroundColor="COLORS.profileBackground">
     <ActionBar visibility="collapse" />
 
-    <ScrollView>
-      <GridLayout rows="auto, *, auto" columns="*">
-        <StackLayout row="0" class="screen" verticalAlignment="top">
-          <Label text="Вход" class="title" :color="COLORS.profileText" />
+    <GridLayout rows="*, auto">
+      <ScrollView row="0">
+        <StackLayout class="screen">
+          <Label :text="titleText" class="title" :color="COLORS.profileText" />
           <Label
-            text="Введите email и пароль, чтобы продолжить"
+            :text="subtitleText"
             class="subtitle"
             :color="COLORS.mutedText"
           />
 
+          <GridLayout columns="*, *" class="mode-switch" :backgroundColor="COLORS.cardBackground">
+            <Button
+              text="Вход"
+              col="0"
+              class="mode-button"
+              :class="{ active: mode === 'login' }"
+              :backgroundColor="mode === 'login' ? COLORS.profileText : COLORS.cardBackground"
+              :color="mode === 'login' ? COLORS.background : COLORS.profileText"
+              @tap="setMode('login')"
+            />
+            <Button
+              text="Регистрация"
+              col="1"
+              class="mode-button"
+              :class="{ active: mode === 'register' }"
+              :backgroundColor="mode === 'register' ? COLORS.profileText : COLORS.cardBackground"
+              :color="mode === 'register' ? COLORS.background : COLORS.profileText"
+              @tap="setMode('register')"
+            />
+          </GridLayout>
+
           <StackLayout class="form">
+            <TextField
+              v-if="mode === 'register'"
+              v-model="name"
+              hint="Имя"
+              class="input"
+              :backgroundColor="COLORS.cardBackground"
+              :color="COLORS.darkText"
+            />
+
             <TextField
               v-model="email"
               hint="Email"
@@ -34,8 +64,8 @@
             />
 
             <Label
-              v-if="errorText"
-              :text="errorText"
+              v-if="visibleError"
+              :text="visibleError"
               class="error-text"
               :color="COLORS.profileText"
             />
@@ -43,50 +73,64 @@
             <Button
               :text="buttonText"
               class="primary-button"
-              :isEnabled="!snapshot.matches('loading')"
+              :isEnabled="!isBusy"
               :backgroundColor="COLORS.profileButton"
               :color="COLORS.profileText"
               @tap="onConfirm"
             />
-
-            <Label
-              text="Регистрация будет добавлена позже"
-              class="login-text"
-              :color="COLORS.mutedText"
-            />
           </StackLayout>
         </StackLayout>
+      </ScrollView>
 
-        <StackLayout row="2" class="bottom-wrap">
-          <Button
-            text="Продолжить как гость"
-            class="secondary-button"
-            :backgroundColor="COLORS.navActiveBackground"
-            :color="COLORS.profileText"
-            @tap="onSkip"
-          />
-        </StackLayout>
-      </GridLayout>
-    </ScrollView>
+      <StackLayout row="1" class="bottom-wrap">
+        <Button
+          :text="guestButtonText"
+          class="secondary-button"
+          :isEnabled="!isBusy"
+          :backgroundColor="COLORS.navActiveBackground"
+          :color="COLORS.profileText"
+          @tap="onGuest"
+        />
+      </StackLayout>
+    </GridLayout>
   </Page>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMachine } from '@xstate/vue';
-import { loginMachine } from '../model/LoginMachine';
+import { loginMachine, type AuthMode } from '../model/LoginMachine';
 import { COLORS } from '../../../Shared/ui/Colors';
 import { useAuthStore } from '../../../Shared/model/AuthStore';
 
+const mode = ref<AuthMode>('login');
 const email = ref('');
 const password = ref('');
+const name = ref('');
+const guestError = ref('');
+const isGuestLoading = ref(false);
 
 const { snapshot, send } = useMachine(loginMachine);
 const authStore = useAuthStore();
 
-const errorText = computed(() => snapshot.value.context.error);
-const buttonText = computed(() =>
-  snapshot.value.matches('loading') ? 'Входим...' : 'Войти'
+const isFormLoading = computed(() => snapshot.value.matches('loading'));
+const isBusy = computed(() => isFormLoading.value || isGuestLoading.value);
+const visibleError = computed(() => guestError.value || snapshot.value.context.error);
+const titleText = computed(() => (mode.value === 'register' ? 'Новый аккаунт' : 'Вход'));
+const subtitleText = computed(() =>
+  mode.value === 'register'
+    ? 'Создайте профиль, чтобы публиковать образы от своего имени'
+    : 'Войдите в аккаунт или продолжите как гость'
+);
+const buttonText = computed(() => {
+  if (isFormLoading.value) {
+    return mode.value === 'register' ? 'Создаем...' : 'Входим...';
+  }
+
+  return mode.value === 'register' ? 'Зарегистрироваться' : 'Войти';
+});
+const guestButtonText = computed(() =>
+  isGuestLoading.value ? 'Создаем гостя...' : 'Продолжить как гость'
 );
 
 watch(
@@ -100,34 +144,53 @@ watch(
       accessToken: nextSnapshot.context.accessToken,
       refreshToken: nextSnapshot.context.refreshToken,
       email: nextSnapshot.context.email,
+      name: nextSnapshot.context.sessionName,
+      isGuest: nextSnapshot.context.isGuest,
       expiresAt: nextSnapshot.context.expiresAt,
     });
   }
 );
 
+function setMode(nextMode: AuthMode) {
+  mode.value = nextMode;
+  guestError.value = '';
+}
+
 function onConfirm() {
+  guestError.value = '';
   send({
     type: 'SUBMIT',
+    mode: mode.value,
     email: email.value,
     password: password.value,
+    name: name.value,
   });
 }
 
-function onSkip() {
-  authStore.continueAsGuest();
+async function onGuest() {
+  guestError.value = '';
+  isGuestLoading.value = true;
+
+  try {
+    await authStore.continueAsGuest();
+  } catch (error) {
+    guestError.value = error instanceof Error ? error.message : 'Не удалось создать гостевой аккаунт.';
+  } finally {
+    isGuestLoading.value = false;
+  }
 }
 </script>
 
 <style scoped lang="scss">
 .screen {
-  padding-top: 34;
+  padding-top: 46;
   padding-left: 18;
   padding-right: 18;
 }
 
 .title {
-  margin-top: 28;
-  margin-bottom: 12;
+  margin-top: 16;
+  margin-bottom: 10;
   text-align: center;
   font-size: 32;
   font-weight: 500;
@@ -136,7 +199,22 @@ function onSkip() {
 .subtitle {
   text-align: center;
   font-size: 15;
-  margin-bottom: 56;
+  margin-bottom: 28;
+}
+
+.mode-switch {
+  height: 50;
+  border-radius: 18;
+  margin-bottom: 22;
+  padding: 4;
+}
+
+.mode-button {
+  height: 42;
+  border-radius: 15;
+  font-size: 15;
+  padding: 0;
+  text-transform: none;
 }
 
 .form {
@@ -145,43 +223,34 @@ function onSkip() {
 
 .input {
   height: 54;
-  margin-bottom: 18;
+  margin-bottom: 16;
   padding-left: 18;
   border-radius: 18;
   font-size: 16;
 }
 
 .error-text {
-  margin-top: -4;
+  margin-top: -2;
   margin-bottom: 12;
   font-size: 13;
+  text-align: center;
 }
 
 .primary-button,
 .secondary-button {
   height: 54;
   border-radius: 18;
-  font-size: 18;
+  font-size: 17;
   text-transform: none;
 }
 
 .primary-button {
-  margin-top: 6;
-}
-
-.login-text {
-  margin-top: 18;
-  text-align: center;
-  font-size: 14;
+  margin-top: 4;
 }
 
 .bottom-wrap {
   padding-left: 18;
   padding-right: 18;
   padding-bottom: 18;
-}
-
-.secondary-button {
-  margin-top: 40;
 }
 </style>
