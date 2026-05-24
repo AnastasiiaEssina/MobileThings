@@ -1,5 +1,9 @@
 <template>
-  <Page :backgroundColor="COLORS.profileBackground">
+  <Page
+    :backgroundColor="COLORS.profileBackground"
+    @loaded="backListener.start"
+    @unloaded="backListener.stop"
+  >
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="auto, *, auto">
@@ -158,6 +162,10 @@ import {
   type FeedPublication,
 } from '../../../Shared/model/api/SocialApi';
 import { useAuthStore } from '../../../Shared/model/AuthStore';
+import {
+  createAndroidBackListener,
+  type AndroidBackHandler,
+} from '../../../Shared/model/AndroidBack';
 import { COLORS } from '../../../Shared/ui/Colors';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
@@ -169,6 +177,10 @@ const publications = ref<FeedPublication[]>([]);
 const isLoading = ref(false);
 const errorText = ref('');
 const expandedId = ref<number | null>(null);
+const handleAndroidBack: AndroidBackHandler = (args) => {
+  args.cancel = true;
+};
+const backListener = createAndroidBackListener(handleAndroidBack);
 
 onMounted(loadFeed);
 

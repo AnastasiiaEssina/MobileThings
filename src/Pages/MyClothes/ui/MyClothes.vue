@@ -1,5 +1,9 @@
 <template>
-  <Page :backgroundColor="COLORS.profileBackground">
+  <Page
+    :backgroundColor="COLORS.profileBackground"
+    @loaded="backListener.start"
+    @unloaded="backListener.stop"
+  >
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="auto, auto, auto, *, auto">
@@ -107,6 +111,10 @@ import {
   type ClothingCategory,
 } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
+import {
+  createAndroidBackListener,
+  type AndroidBackHandler,
+} from '../../../Shared/model/AndroidBack';
 import AddClothesModal from '../../../Shared/ui/AddClothesModal.vue';
 import ClothingInfoModal from '../../../Shared/ui/ClothingInfoModal.vue';
 import ClothingPreview from '../../../Shared/ui/ClothingPreview.vue';
@@ -122,6 +130,19 @@ const showAddClothesModal = ref(false);
 const selectedClothingId = ref<string | null>(null);
 const wardrobeStore = useWardrobeStore();
 const { myClothes, outfits } = storeToRefs(wardrobeStore);
+const handleAndroidBack: AndroidBackHandler = (args) => {
+  args.cancel = true;
+
+  if (selectedClothingId.value) {
+    closeClothingDetails();
+    return;
+  }
+
+  if (showAddClothesModal.value) {
+    showAddClothesModal.value = false;
+  }
+};
+const backListener = createAndroidBackListener(handleAndroidBack);
 
 const categories = [
   { value: 'all' as const, label: CLOTHING_CATEGORY_LABELS.all },

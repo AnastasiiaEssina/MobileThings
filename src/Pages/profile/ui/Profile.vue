@@ -1,5 +1,10 @@
 <template>
-  <Page class="page" :backgroundColor="COLORS.profileBackground">
+  <Page
+    class="page"
+    :backgroundColor="COLORS.profileBackground"
+    @loaded="backListener.start"
+    @unloaded="backListener.stop"
+  >
     <GridLayout rows="auto, *, auto">
       <GridLayout row="0" rows="auto, auto" class="header">
         <GridLayout row="0" columns="*, auto" class="top-bar">
@@ -131,6 +136,10 @@ import { $navigateTo } from 'nativescript-vue';
 import { storeToRefs } from 'pinia';
 import type { Outfit } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
+import {
+  createAndroidBackListener,
+  type AndroidBackHandler,
+} from '../../../Shared/model/AndroidBack';
 import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
@@ -143,6 +152,14 @@ const wardrobeStore = useWardrobeStore();
 const { outfits: allOutfits } = storeToRefs(wardrobeStore);
 const outfits = computed(() => allOutfits.value);
 const selectedOutfitId = ref<string | null>(null);
+const handleAndroidBack: AndroidBackHandler = (args) => {
+  args.cancel = true;
+
+  if (selectedOutfitId.value) {
+    closeOutfitDetails();
+  }
+};
+const backListener = createAndroidBackListener(handleAndroidBack);
 const selectedOutfit = computed<Outfit | null>(() => {
   if (!selectedOutfitId.value) {
     return null;

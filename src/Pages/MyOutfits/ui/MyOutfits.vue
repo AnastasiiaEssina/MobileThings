@@ -1,5 +1,9 @@
 <template>
-  <Page :backgroundColor="COLORS.profileBackground">
+  <Page
+    :backgroundColor="COLORS.profileBackground"
+    @loaded="backListener.start"
+    @unloaded="backListener.stop"
+  >
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="auto, auto, auto, auto, *, auto">
@@ -164,6 +168,10 @@ import { outfitsMachine } from '../model/Machine';
 import Profile from '../../profile/ui/Profile.vue';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import {
+  createAndroidBackListener,
+  type AndroidBackHandler,
+} from '../../../Shared/model/AndroidBack';
+import {
   COLOR_SCHEME_VALUES,
   OUTFIT_STYLE_VALUES,
   SEASON_VALUES,
@@ -206,6 +214,14 @@ const wardrobeStore = useWardrobeStore();
 const { outfits } = storeToRefs(wardrobeStore);
 const activeFilter = ref<FilterKey | null>(null);
 const selectedOutfitId = ref<string | null>(null);
+const handleAndroidBack: AndroidBackHandler = (args) => {
+  args.cancel = true;
+
+  if (selectedOutfitId.value) {
+    closeOutfitDetails();
+  }
+};
+const backListener = createAndroidBackListener(handleAndroidBack);
 
 onMounted(() => {
   send({ type: 'FETCH_OUTFITS' });

@@ -1,5 +1,9 @@
 <template>
-  <Page :backgroundColor="COLORS.profileBackground">
+  <Page
+    :backgroundColor="COLORS.profileBackground"
+    @loaded="backListener.start"
+    @unloaded="backListener.stop"
+  >
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="auto, *, auto">
@@ -149,6 +153,10 @@ import {
 } from '../../../Shared/model/Wardrobe';
 import { publishOutfit } from '../../../Shared/model/api/SocialApi';
 import { useAuthStore } from '../../../Shared/model/AuthStore';
+import {
+  createAndroidBackListener,
+  type AndroidBackHandler,
+} from '../../../Shared/model/AndroidBack';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import { COLORS } from '../../../Shared/ui/Colors';
 import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
@@ -173,6 +181,15 @@ const infoOutfitId = ref<string | null>(null);
 const activeFilter = ref<FilterKey | null>(null);
 const isPublishing = ref(false);
 const publishStatus = ref('');
+const handleAndroidBack: AndroidBackHandler = (args) => {
+  if (!infoOutfitId.value) {
+    return;
+  }
+
+  args.cancel = true;
+  closeOutfitDetails();
+};
+const backListener = createAndroidBackListener(handleAndroidBack);
 const filters = ref<OutfitFilterState>({
   style: 'all',
   season: 'all',
