@@ -19,11 +19,10 @@ app.registerElement('SVGView', () => SVGView);
 const themeStore = useThemeStore(pinia);
 const authStore = useAuthStore(pinia);
 const wardrobeStore = useWardrobeStore(pinia);
-let wardrobeSyncTimer: ReturnType<typeof setInterval> | null = null;
 
 themeStore.initialize();
 
-function syncWardrobeIfOnline() {
+function syncWardrobeIfSignedIn() {
   if (!authStore.accessToken || authStore.isGuest) {
     return;
   }
@@ -31,19 +30,12 @@ function syncWardrobeIfOnline() {
   void wardrobeStore.syncWithServer(authStore.accessToken);
 }
 
-function startWardrobeSyncLoop() {
-  if (wardrobeSyncTimer) {
-    return;
-  }
-
-  wardrobeSyncTimer = setInterval(syncWardrobeIfOnline, 45_000);
-}
+wardrobeStore.setChangeSyncHandler(syncWardrobeIfSignedIn);
 
 async function initializeStores() {
   try {
     await Promise.all([authStore.initialize(), wardrobeStore.initialize()]);
-    syncWardrobeIfOnline();
-    startWardrobeSyncLoop();
+    syncWardrobeIfSignedIn();
   } catch (error) {
     console.error('Failed to initialize application state', error);
   }
@@ -52,7 +44,7 @@ async function initializeStores() {
 watch(
   () => authStore.accessToken,
   () => {
-    syncWardrobeIfOnline();
+    syncWardrobeIfSignedIn();
   }
 );
 

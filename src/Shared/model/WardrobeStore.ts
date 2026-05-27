@@ -48,6 +48,15 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
   const error = ref<string | null>(null);
 
   let initializationPromise: Promise<void> | null = null;
+  let changeSyncHandler: (() => void) | null = null;
+
+  function setChangeSyncHandler(handler: (() => void) | null) {
+    changeSyncHandler = handler;
+  }
+
+  function syncAfterLocalChange() {
+    changeSyncHandler?.();
+  }
 
   async function refreshClothes() {
     const [nextMyClothes, nextStandardClothes] = await Promise.all([
@@ -120,6 +129,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await initialize();
     await addClothingToMyWardrobeInRepository(clothingId);
     await refreshClothes();
+    syncAfterLocalChange();
   }
 
   async function createOutfitFromSelection(itemIds: string[]) {
@@ -146,12 +156,14 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
     await createOutfitInRepository(input);
     await refreshOutfits();
+    syncAfterLocalChange();
   }
 
   async function updateUserSettings(patch: Partial<UserSettings>) {
     await initialize();
     await updateUserSettingsInRepository(patch);
     await refreshSettings();
+    syncAfterLocalChange();
   }
 
   async function updateOutfit(
@@ -166,12 +178,14 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await initialize();
     await updateOutfitInRepository(outfitId, patch);
     await refreshOutfits();
+    syncAfterLocalChange();
   }
 
   async function deleteOutfit(outfitId: string) {
     await initialize();
     await deleteOutfitInRepository(outfitId);
     await refreshOutfits();
+    syncAfterLocalChange();
   }
 
   async function updateClothing(
@@ -186,6 +200,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await initialize();
     await updateClothingInRepository(clothingId, patch);
     await Promise.all([refreshClothes(), refreshOutfits()]);
+    syncAfterLocalChange();
   }
 
   async function deleteClothing(clothingId: string) {
@@ -204,6 +219,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
     await deleteClothingInRepository(clothingId);
     await Promise.all([refreshClothes(), refreshOutfits()]);
+    syncAfterLocalChange();
   }
 
   async function syncWithServer(accessToken?: string | null) {
@@ -246,6 +262,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     refreshClothes,
     refreshOutfits,
     refreshSettings,
+    setChangeSyncHandler,
     addClothingToMyWardrobe,
     createOutfitFromSelection,
     updateOutfit,
