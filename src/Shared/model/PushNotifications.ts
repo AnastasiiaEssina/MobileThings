@@ -1,10 +1,12 @@
-import { ApplicationSettings, isAndroid, isIOS } from '@nativescript/core';
+import { Application, ApplicationSettings, isAndroid, isIOS } from '@nativescript/core';
 import { firebase } from '@nativescript/firebase-core';
 import '@nativescript/firebase-messaging';
 import { AuthorizationStatus } from '@nativescript/firebase-messaging';
 import { deletePushToken, registerPushToken } from './api/PushApi';
 
 let isInitialized = false;
+let initializationPromise: Promise<ReturnType<ReturnType<typeof firebase>['messaging']>> | null =
+  null;
 const STORED_PUSH_TOKEN_KEY = 'push.lastRegisteredToken';
 let lastRegisteredToken: string | null =
   ApplicationSettings.getString(STORED_PUSH_TOKEN_KEY, '') || null;
@@ -19,6 +21,29 @@ function isPermissionAllowed(status: AuthorizationStatus) {
 
 function platformName() {
   return isIOS ? 'ios' : 'android';
+}
+
+function ensureFeedNotificationChannel() {
+  if (!isAndroid || !Application.android?.context) {
+    return;
+  }
+
+  if (android.os.Build.VERSION.SDK_INT < 26) {
+    return;
+  }
+
+  const context = Application.android.context;
+  const channel = new android.app.NotificationChannel(
+    'feed',
+    'Лента',
+    android.app.NotificationManager.IMPORTANCE_DEFAULT
+  );
+  channel.setDescription('Новые образы авторов, на которых вы подписаны');
+
+  const manager = context.getSystemService(
+    android.content.Context.NOTIFICATION_SERVICE
+  ) as android.app.NotificationManager;
+  manager.createNotificationChannel(channel);
 }
 
 function rememberRegisteredToken(token: string | null) {
@@ -39,30 +64,60 @@ async function registerCurrentPushToken(accessToken: string, pushToken: string) 
   console.log('Push token registered');
 }
 
-async function ensureFirebaseMessaging() {
-  if (!isInitialized) {
-    await firebase().initializeApp();
-    const messaging = firebase().messaging();
-    messaging.showNotificationsWhenInForeground = true;
-    messaging.onMessage((message) => {
-      console.log('Push received', JSON.stringify(message));
-    });
-    messaging.onNotificationTap((message) => {
-      console.log('Push tapped', JSON.stringify(message));
-    });
-    messaging.onToken((token) => {
-      rememberRegisteredToken(null);
-      console.log('Push token refreshed', token ? 'available' : 'empty');
-      if (token && activeAccessToken) {
-        void registerCurrentPushToken(activeAccessToken, token).catch((error) => {
-          console.log('Push token refresh registration failed', error);
-        });
-      }
-    });
-    isInitialized = true;
+async function ensureFirebaseApp() {
+  try {
+    firebase().app();
+    return;
+  } catch {
+    // Native Firebase can already be initialized by FirebaseInitProvider on Android.
   }
 
-  return firebase().messaging();
+  try {
+    await firebase().initializeApp();
+  } catch (error) {
+    try {
+      firebase().app();
+      return;
+    } catch {
+      throw error;
+    }
+  }
+}
+
+async function ensureFirebaseMessaging() {
+  if (isInitialized) {
+    return firebase().messaging();
+  }
+
+  if (!initializationPromise) {
+    initializationPromise = (async () => {
+      await ensureFirebaseApp();
+      ensureFeedNotificationChannel();
+      const messaging = firebase().messaging();
+      messaging.showNotificationsWhenInForeground = true;
+      messaging.onMessage((message) => {
+        console.log('Push received', JSON.stringify(message));
+      });
+      messaging.onNotificationTap((message) => {
+        console.log('Push tapped', JSON.stringify(message));
+      });
+      messaging.onToken((token) => {
+        rememberRegisteredToken(null);
+        console.log('Push token refreshed', token ? 'available' : 'empty');
+        if (token && activeAccessToken) {
+          void registerCurrentPushToken(activeAccessToken, token).catch((error) => {
+            console.log('Push token refresh registration failed', error);
+          });
+        }
+      });
+      isInitialized = true;
+      return messaging;
+    })().finally(() => {
+      initializationPromise = null;
+    });
+  }
+
+  return initializationPromise;
 }
 
 export async function syncPushTokenForUser(accessToken?: string | null) {
@@ -76,16 +131,24 @@ export async function syncPushTokenForUser(accessToken?: string | null) {
 
   try {
     const messaging = await ensureFirebaseMessaging();
-    const permissionStatus = await messaging.requestPermission({
-      ios: {
-        alert: true,
-        badge: true,
-        sound: true,
-      },
-    });
+    if (isAndroid) {
+      try {
+        await messaging.requestPermission();
+      } catch (error) {
+        console.log('Android notification permission request finished', error);
+      }
+    } else {
+      const permissionStatus = await messaging.requestPermission({
+        ios: {
+          alert: true,
+          badge: true,
+          sound: true,
+        },
+      });
 
-    if (!isAndroid && !isPermissionAllowed(permissionStatus)) {
-      return;
+      if (!isPermissionAllowed(permissionStatus)) {
+        return;
+      }
     }
 
     await messaging.registerDeviceForRemoteMessages();
