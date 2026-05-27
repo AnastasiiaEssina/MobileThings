@@ -13,6 +13,7 @@ type LoginContext = {
   refreshToken: string;
   sessionName: string;
   isGuest: boolean;
+  avatarDataUrl: string | null;
   expiresAt: string;
 };
 
@@ -32,7 +33,7 @@ type LoginResult = {
   refreshToken: string;
   email: string;
   name: string;
-  isGuest: boolean;
+  avatarDataUrl: string | null;
   expiresAt: string;
 };
 
@@ -46,6 +47,7 @@ const initialContext: LoginContext = {
   refreshToken: '',
   sessionName: '',
   isGuest: false,
+  avatarDataUrl: null,
   expiresAt: '',
 };
 
@@ -106,6 +108,7 @@ export const loginMachine = createMachine(
               refreshToken: () => '',
               sessionName: () => '',
               isGuest: () => false,
+              avatarDataUrl: () => null,
               expiresAt: () => '',
             }),
           },
@@ -128,7 +131,8 @@ export const loginMachine = createMachine(
               refreshToken: ({ event }) => event.output.refreshToken,
               email: ({ event }) => event.output.email,
               sessionName: ({ event }) => event.output.name,
-              isGuest: ({ event }) => event.output.isGuest,
+              isGuest: () => false,
+              avatarDataUrl: ({ event }) => event.output.avatarDataUrl,
               expiresAt: ({ event }) => event.output.expiresAt,
               error: () => '',
             }),
@@ -141,6 +145,7 @@ export const loginMachine = createMachine(
               refreshToken: () => '',
               sessionName: () => '',
               isGuest: () => false,
+              avatarDataUrl: () => null,
               expiresAt: () => '',
             }),
           },
@@ -171,6 +176,7 @@ export const loginMachine = createMachine(
               refreshToken: () => '',
               sessionName: () => '',
               isGuest: () => false,
+              avatarDataUrl: () => null,
               expiresAt: () => '',
             }),
           },

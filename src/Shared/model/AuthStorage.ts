@@ -5,6 +5,7 @@ const REFRESH_TOKEN_KEY = 'auth.refreshToken';
 const AUTH_EMAIL_KEY = 'auth.email';
 const AUTH_NAME_KEY = 'auth.name';
 const AUTH_IS_GUEST_KEY = 'auth.isGuest';
+const AVATAR_DATA_URL_KEY = 'auth.avatarDataUrl';
 const EXPIRES_AT_KEY = 'auth.expiresAt';
 
 export type StoredSession = {
@@ -13,6 +14,7 @@ export type StoredSession = {
   email: string | null;
   name: string | null;
   isGuest: boolean;
+  avatarDataUrl: string | null;
   expiresAt: string | null;
 };
 
@@ -23,6 +25,7 @@ export function getStoredSession(): StoredSession {
     email: ApplicationSettings.getString(AUTH_EMAIL_KEY, ''),
     name: ApplicationSettings.getString(AUTH_NAME_KEY, ''),
     isGuest: ApplicationSettings.getBoolean(AUTH_IS_GUEST_KEY, false),
+    avatarDataUrl: ApplicationSettings.getString(AVATAR_DATA_URL_KEY, ''),
     expiresAt: ApplicationSettings.getString(EXPIRES_AT_KEY, ''),
   };
 }
@@ -33,6 +36,7 @@ export function saveStoredSession(session: StoredSession) {
   ApplicationSettings.setString(AUTH_EMAIL_KEY, session.email ?? '');
   ApplicationSettings.setString(AUTH_NAME_KEY, session.name ?? '');
   ApplicationSettings.setBoolean(AUTH_IS_GUEST_KEY, session.isGuest);
+  ApplicationSettings.setString(AVATAR_DATA_URL_KEY, session.avatarDataUrl ?? '');
   ApplicationSettings.setString(EXPIRES_AT_KEY, session.expiresAt ?? '');
 }
 
@@ -42,5 +46,6 @@ export function clearStoredSession() {
   ApplicationSettings.remove(AUTH_EMAIL_KEY);
   ApplicationSettings.remove(AUTH_NAME_KEY);
   ApplicationSettings.remove(AUTH_IS_GUEST_KEY);
+  ApplicationSettings.remove(AVATAR_DATA_URL_KEY);
   ApplicationSettings.remove(EXPIRES_AT_KEY);
 }

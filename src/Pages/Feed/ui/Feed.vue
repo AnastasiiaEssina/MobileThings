@@ -29,21 +29,31 @@
       <ScrollView row="1">
         <StackLayout class="feed-list">
           <Label
-            v-if="isLoading"
+            v-if="!authStore.isServerUser"
+            text="Войдите в аккаунт, чтобы видеть ленту, подписываться на авторов и публиковать образы."
+            class="state-text"
+            textWrap="true"
+            :color="COLORS.profileText"
+          />
+          <Label
+            v-else-if="isLoading"
             text="Загружаем публикации..."
             class="state-text"
+            textWrap="true"
             :color="COLORS.mutedText"
           />
           <Label
             v-else-if="errorText"
             :text="errorText"
             class="state-text"
+            textWrap="true"
             :color="COLORS.profileText"
           />
           <Label
             v-else-if="!publications.length"
             text="Пока тихо. Опубликуйте первый образ из профиля."
             class="state-text"
+            textWrap="true"
             :color="COLORS.mutedText"
           />
 
@@ -189,6 +199,13 @@ function getErrorText(error: unknown) {
 }
 
 async function loadFeed() {
+  if (!authStore.isServerUser) {
+    publications.value = [];
+    isLoading.value = false;
+    errorText.value = '';
+    return;
+  }
+
   isLoading.value = true;
   errorText.value = '';
 

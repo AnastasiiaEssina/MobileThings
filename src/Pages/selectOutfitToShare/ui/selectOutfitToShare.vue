@@ -17,14 +17,14 @@
         <Button
           text="Опубликовать выбранный"
           class="publish-button"
-          :isEnabled="Boolean(selectedOutfit) && !isPublishing"
+          :isEnabled="Boolean(selectedOutfit) && !isPublishing && authStore.isServerUser"
           :backgroundColor="COLORS.profileButton"
           :color="COLORS.profileText"
           @tap="publishSelectedOutfit"
         />
         <Label
-          v-if="publishStatus"
-          :text="publishStatus"
+          v-if="publishMessage"
+          :text="publishMessage"
           class="publish-status"
           :color="COLORS.mutedText"
         />
@@ -181,6 +181,11 @@ const infoOutfitId = ref<string | null>(null);
 const activeFilter = ref<FilterKey | null>(null);
 const isPublishing = ref(false);
 const publishStatus = ref('');
+const publishMessage = computed(() =>
+  authStore.isServerUser
+    ? publishStatus.value
+    : 'Войдите в аккаунт, чтобы публиковать образы.'
+);
 const handleAndroidBack: AndroidBackHandler = (args) => {
   if (!infoOutfitId.value) {
     return;

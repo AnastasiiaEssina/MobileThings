@@ -7,7 +7,7 @@ type AuthResponse = {
   user: {
     email: string;
     name: string;
-    is_guest: boolean;
+    avatar_data_url?: string | null;
   };
   error?: string;
 };
@@ -17,7 +17,7 @@ export type SessionPayload = {
   refreshToken: string;
   email: string;
   name: string;
-  isGuest: boolean;
+  avatarDataUrl: string | null;
   expiresAt: string;
 };
 
@@ -51,7 +51,7 @@ async function requestAuth(path: string, body: Record<string, string> = {}): Pro
     refreshToken: data.refresh_token,
     email: data.user?.email ?? '',
     name: data.user?.name ?? '',
-    isGuest: Boolean(data.user?.is_guest),
+    avatarDataUrl: data.user?.avatar_data_url ?? null,
     expiresAt,
   };
 }
@@ -62,10 +62,6 @@ export function loginUser(email: string, password: string) {
 
 export function registerUser(email: string, password: string, name: string) {
   return requestAuth('/auth/register', { email, password, name });
-}
-
-export function createGuestSession() {
-  return requestAuth('/auth/guest');
 }
 
 export function refreshUserSession(refreshToken: string) {

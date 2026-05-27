@@ -108,13 +108,12 @@ const email = ref('');
 const password = ref('');
 const name = ref('');
 const guestError = ref('');
-const isGuestLoading = ref(false);
 
 const { snapshot, send } = useMachine(loginMachine);
 const authStore = useAuthStore();
 
 const isFormLoading = computed(() => snapshot.value.matches('loading'));
-const isBusy = computed(() => isFormLoading.value || isGuestLoading.value);
+const isBusy = computed(() => isFormLoading.value);
 const visibleError = computed(() => guestError.value || snapshot.value.context.error);
 const titleText = computed(() => (mode.value === 'register' ? 'Новый аккаунт' : 'Вход'));
 const subtitleText = computed(() =>
@@ -129,9 +128,7 @@ const buttonText = computed(() => {
 
   return mode.value === 'register' ? 'Зарегистрироваться' : 'Войти';
 });
-const guestButtonText = computed(() =>
-  isGuestLoading.value ? 'Создаем гостя...' : 'Продолжить как гость'
-);
+const guestButtonText = computed(() => 'Продолжить как гость');
 
 watch(
   () => snapshot.value,
@@ -145,7 +142,8 @@ watch(
       refreshToken: nextSnapshot.context.refreshToken,
       email: nextSnapshot.context.email,
       name: nextSnapshot.context.sessionName,
-      isGuest: nextSnapshot.context.isGuest,
+      isGuest: false,
+      avatarDataUrl: nextSnapshot.context.avatarDataUrl,
       expiresAt: nextSnapshot.context.expiresAt,
     });
   }
@@ -167,17 +165,9 @@ function onConfirm() {
   });
 }
 
-async function onGuest() {
+function onGuest() {
   guestError.value = '';
-  isGuestLoading.value = true;
-
-  try {
-    await authStore.continueAsGuest();
-  } catch (error) {
-    guestError.value = error instanceof Error ? error.message : 'Не удалось создать гостевой аккаунт.';
-  } finally {
-    isGuestLoading.value = false;
-  }
+  authStore.continueAsGuest();
 }
 </script>
 

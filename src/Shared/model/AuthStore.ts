@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { createGuestSession, refreshUserSession } from './api/AuthApi';
+import { refreshUserSession } from './api/AuthApi';
 import {
   clearStoredSession,
   getStoredSession,
@@ -14,6 +14,7 @@ type SessionInput = {
   email?: string | null;
   name?: string | null;
   isGuest?: boolean | null;
+  avatarDataUrl?: string | null;
   expiresAt?: string | null;
 };
 
@@ -29,6 +30,7 @@ function normalizeSession(session: SessionInput): StoredSession {
     email: normalizeValue(session.email),
     name: normalizeValue(session.name),
     isGuest: Boolean(session.isGuest),
+    avatarDataUrl: normalizeValue(session.avatarDataUrl),
     expiresAt: normalizeValue(session.expiresAt),
   };
 }
@@ -39,6 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
   const email = ref<string | null>(null);
   const name = ref<string | null>(null);
   const isGuest = ref(false);
+  const avatarDataUrl = ref<string | null>(null);
   const expiresAt = ref<string | null>(null);
   const isHydrated = ref(false);
   const isRefreshing = ref(false);
@@ -51,6 +54,7 @@ export const useAuthStore = defineStore('auth', () => {
     email.value = nextSession.email;
     name.value = nextSession.name;
     isGuest.value = nextSession.isGuest;
+    avatarDataUrl.value = nextSession.avatarDataUrl;
     expiresAt.value = nextSession.expiresAt;
   }
 
@@ -61,6 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
       email: email.value,
       name: name.value,
       isGuest: isGuest.value,
+      avatarDataUrl: avatarDataUrl.value,
       expiresAt: expiresAt.value,
     });
   }
@@ -77,13 +82,37 @@ export const useAuthStore = defineStore('auth', () => {
     isHydrated.value = true;
   }
 
-  async function continueAsGuest() {
-    const session = await createGuestSession();
-    setSession(session);
+  function continueAsGuest() {
+    setSession({
+      name: 'Гость',
+      isGuest: true,
+    });
+  }
+
+  function updateStoredProfile(profile: { email?: string | null; name?: string | null; avatar_data_url?: string | null }) {
+    setSession({
+      accessToken: accessToken.value,
+      refreshToken: refreshToken.value,
+      email: profile.email ?? email.value,
+      name: profile.name ?? name.value,
+      isGuest: false,
+      avatarDataUrl: profile.avatar_data_url ?? null,
+      expiresAt: expiresAt.value,
+    });
   }
 
   async function initialize() {
     applySession(getStoredSession());
+
+    if (isGuest.value) {
+      applySession({
+        name: name.value || 'Гость',
+        isGuest: true,
+      });
+      persistSession();
+      isHydrated.value = true;
+      return;
+    }
 
     if (!refreshToken.value) {
       if (accessToken.value) {
@@ -114,12 +143,15 @@ export const useAuthStore = defineStore('auth', () => {
     email,
     name,
     isGuest,
+    avatarDataUrl,
     expiresAt,
     isHydrated,
     isRefreshing,
-    isAuthenticated: computed(() => Boolean(accessToken.value)),
+    isAuthenticated: computed(() => Boolean(accessToken.value) || isGuest.value),
+    isServerUser: computed(() => Boolean(accessToken.value) && !isGuest.value),
     initialize,
     setSession,
+    updateStoredProfile,
     continueAsGuest,
     logout,
   };

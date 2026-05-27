@@ -18,18 +18,77 @@
         </GridLayout>
 
         <StackLayout row="1" class="profile-block">
-          <Image
-            src="~/assets/bird.jpg"
-            loadMode="async"
-            stretch="aspectFill"
-            class="avatar"
-          />
+          <GridLayout v-if="!authStore.isGuest" class="avatar">
+            <Image
+              v-if="avatarImageSource"
+              :src="avatarImageSource"
+              loadMode="async"
+              stretch="aspectFill"
+              class="avatar-image"
+            />
+            <Label
+              v-else
+              text="Нет аватарки"
+              class="avatar-empty"
+              :color="COLORS.mutedText"
+            />
+          </GridLayout>
           <Label :text="displayName" class="username" :color="COLORS.profileText" />
           <Label :text="profileCaption" class="profile-caption" :color="COLORS.mutedText" />
+          <StackLayout v-if="authStore.isServerUser" class="avatar-editor">
+            <TextView
+              v-model="avatarDraft"
+              hint="data:image/jpeg;base64,..."
+              class="avatar-input"
+              :backgroundColor="COLORS.cardBackground"
+              :color="COLORS.darkText"
+            />
+            <GridLayout columns="*, *" class="avatar-actions">
+              <Button
+                col="0"
+                text="Сохранить свою"
+                class="avatar-action"
+                :isEnabled="!isAvatarSaving"
+                :backgroundColor="COLORS.profileButton"
+                :color="COLORS.profileText"
+                @tap="saveCustomAvatar"
+              />
+              <Button
+                col="1"
+                text="Птица"
+                class="avatar-action"
+                :isEnabled="!isAvatarSaving"
+                :backgroundColor="COLORS.profileButton"
+                :color="COLORS.profileText"
+                @tap="saveBirdAvatar"
+              />
+            </GridLayout>
+            <Button
+              text="Удалить аватарку"
+              class="avatar-delete"
+              :isEnabled="Boolean(authStore.avatarDataUrl) && !isAvatarSaving"
+              :backgroundColor="COLORS.navActiveBackground"
+              :color="COLORS.profileText"
+              @tap="removeAvatar"
+            />
+            <Label
+              v-if="avatarStatus"
+              :text="avatarStatus"
+              class="avatar-status"
+              :color="COLORS.mutedText"
+            />
+          </StackLayout>
+          <Label
+            v-else
+            text="Гость работает локально: без серверной аватарки и ленты."
+            class="guest-note"
+            :color="COLORS.mutedText"
+          />
           <Button
-            text="Опубликовать образ"
+            :text="publishButtonText"
             class="publish-btn"
-            :backgroundColor="COLORS.profileButton"
+            :isEnabled="authStore.isServerUser"
+            :backgroundColor="authStore.isServerUser ? COLORS.profileButton : COLORS.navActiveBackground"
             :color="COLORS.profileText"
             @tap="openSelectOutfitToShare"
           />
@@ -141,6 +200,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
+import { ImageSource } from '@nativescript/core';
 import { storeToRefs } from 'pinia';
 import type { Outfit } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
@@ -152,6 +212,7 @@ import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
 import { useAuthStore } from '../../../Shared/model/AuthStore';
+import { deleteAvatar, updateAvatar } from '../../../Shared/model/api/ProfileApi';
 import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
@@ -161,10 +222,17 @@ const authStore = useAuthStore();
 const wardrobeStore = useWardrobeStore();
 const { outfits: allOutfits } = storeToRefs(wardrobeStore);
 const outfits = computed(() => allOutfits.value);
+const avatarDraft = ref('');
+const avatarStatus = ref('');
+const isAvatarSaving = ref(false);
 const displayName = computed(() => authStore.name || authStore.email || 'Пользователь');
 const profileCaption = computed(() =>
   authStore.isGuest ? 'Гостевой аккаунт' : authStore.email || 'Аккаунт Things'
 );
+const publishButtonText = computed(() =>
+  authStore.isServerUser ? 'Опубликовать образ' : 'Войдите, чтобы публиковать'
+);
+const avatarImageSource = computed(() => dataUrlToImageSource(authStore.avatarDataUrl));
 const selectedOutfitId = ref<string | null>(null);
 const handleAndroidBack: AndroidBackHandler = (args) => {
   args.cancel = true;
@@ -190,6 +258,11 @@ const selectedOutfitItems = computed(() => {
 });
 
 function openSelectOutfitToShare() {
+  if (!authStore.isServerUser) {
+    avatarStatus.value = 'Войдите в аккаунт, чтобы публиковать образы.';
+    return;
+  }
+
   $navigateTo(selectOutfitToShare);
 }
 
@@ -223,6 +296,94 @@ function getOutfitItems(outfit: Outfit) {
 
 function logout() {
   authStore.logout();
+}
+
+function dataUrlToImageSource(dataUrl?: string | null) {
+  if (!dataUrl || authStore.isGuest) {
+    return null;
+  }
+
+  const base64 = dataUrl.includes(',') ? dataUrl.split(',', 2)[1] : dataUrl;
+  try {
+    return ImageSource.fromBase64Sync(base64);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeAvatarInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('data:image/')) {
+    return trimmed;
+  }
+
+  return `data:image/jpeg;base64,${trimmed}`;
+}
+
+async function persistAvatar(dataUrl: string) {
+  const token = authStore.accessToken;
+  if (!token || isAvatarSaving.value) {
+    return;
+  }
+
+  isAvatarSaving.value = true;
+  avatarStatus.value = '';
+
+  try {
+    const profile = await updateAvatar(token, dataUrl);
+    authStore.updateStoredProfile(profile);
+    avatarDraft.value = '';
+    avatarStatus.value = 'Аватарка сохранена.';
+  } catch (error) {
+    avatarStatus.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    isAvatarSaving.value = false;
+  }
+}
+
+async function saveCustomAvatar() {
+  const dataUrl = normalizeAvatarInput(avatarDraft.value);
+  if (!dataUrl) {
+    avatarStatus.value = 'Вставьте base64 аватарки.';
+    return;
+  }
+
+  await persistAvatar(dataUrl);
+}
+
+async function saveBirdAvatar() {
+  try {
+    const bird = ImageSource.fromFileOrResourceSync('~/assets/bird.jpg');
+    const image = bird.resize(256);
+    const base64 = image.toBase64String('jpeg', 80);
+    await persistAvatar(`data:image/jpeg;base64,${base64}`);
+  } catch {
+    avatarStatus.value = 'Не удалось подготовить аватарку-птицу.';
+  }
+}
+
+async function removeAvatar() {
+  const token = authStore.accessToken;
+  if (!token || isAvatarSaving.value) {
+    return;
+  }
+
+  isAvatarSaving.value = true;
+  avatarStatus.value = '';
+
+  try {
+    const profile = await deleteAvatar(token);
+    authStore.updateStoredProfile(profile);
+    avatarStatus.value = 'Аватарка удалена.';
+  } catch (error) {
+    avatarStatus.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    isAvatarSaving.value = false;
+  }
 }
 </script>
 
@@ -260,6 +421,21 @@ function logout() {
   height: 118;
   border-radius: 59;
   margin-top: 4;
+  background-color: #f5ead8;
+  horizontal-align: center;
+  vertical-align: middle;
+}
+
+.avatar-image {
+  width: 118;
+  height: 118;
+  border-radius: 59;
+}
+
+.avatar-empty {
+  font-size: 13;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .username {
@@ -271,6 +447,44 @@ function logout() {
 .profile-caption {
   margin-top: 4;
   font-size: 13;
+  text-align: center;
+}
+
+.avatar-editor {
+  width: 336;
+  margin-top: 10;
+}
+
+.avatar-input {
+  height: 70;
+  border-radius: 14;
+  padding: 8 12;
+  font-size: 12;
+}
+
+.avatar-actions {
+  margin-top: 8;
+}
+
+.avatar-action {
+  height: 34;
+  border-radius: 17;
+  font-size: 12;
+  padding: 0;
+}
+
+.avatar-delete {
+  margin-top: 8;
+  height: 34;
+  border-radius: 17;
+  font-size: 12;
+  padding: 0;
+}
+
+.avatar-status,
+.guest-note {
+  margin-top: 6;
+  font-size: 12;
   text-align: center;
 }
 
