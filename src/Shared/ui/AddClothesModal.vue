@@ -66,9 +66,17 @@
       </WrapLayout>
 
       <Button
-        text="Загрузить свое"
+        :text="isUploading ? 'Сканирую...' : 'Загрузить свое'"
         class="upload-button"
         :backgroundColor="COLORS.profileButton"
+        :color="COLORS.profileText"
+        :isEnabled="!isUploading"
+        @tap="uploadOwnClothing"
+      />
+      <Label
+        v-if="uploadError"
+        :text="uploadError"
+        class="upload-error"
         :color="COLORS.profileText"
       />
     </StackLayout>
@@ -95,6 +103,8 @@ const emit = defineEmits<{
 const wardrobeStore = useWardrobeStore();
 const { standardClothes } = storeToRefs(wardrobeStore);
 const selectedCategory = ref<Category>('all');
+const isUploading = ref(false);
+const uploadError = ref('');
 
 const categories = [
   { value: 'all' as const, label: 'Все' },
@@ -114,6 +124,26 @@ const filteredStandardClothes = computed(() => {
 async function addClothing(id: string) {
   await wardrobeStore.addClothingToMyWardrobe(id);
   emitClose();
+}
+
+async function uploadOwnClothing() {
+  if (isUploading.value) {
+    return;
+  }
+
+  isUploading.value = true;
+  uploadError.value = '';
+
+  try {
+    await wardrobeStore.scanAndAddCustomClothing(
+      selectedCategory.value === 'all' ? 'tops' : selectedCategory.value
+    );
+    emitClose();
+  } catch (error) {
+    uploadError.value = error instanceof Error ? error.message : 'Не получилось добавить вещь.';
+  } finally {
+    isUploading.value = false;
+  }
 }
 
 function emitClose() {
@@ -215,5 +245,11 @@ function emitClose() {
   font-size: 16;
   padding: 0;
   text-transform: none;
+}
+
+.upload-error {
+  margin: 10 8 0 8;
+  font-size: 13;
+  text-align: center;
 }
 </style>

@@ -2,9 +2,12 @@ import type { SqliteRow } from '@nativescript-community/sqlite/sqlite.common';
 import type { WardrobeSyncSnapshot } from '../api/WardrobeSyncApi';
 import type {
   Clothing,
+  ClothingCategory,
   ClothingUpdateInput,
   Outfit,
   OutfitUpdateInput,
+  Season,
+  ColorScheme,
   UserSettings,
 } from '../Wardrobe';
 import { DEFAULT_SETTINGS_ID, getWardrobeDatabase } from '../db/WardrobeDatabase';
@@ -141,6 +144,55 @@ export async function addClothingToMyWardrobe(clothingId: string) {
       WHERE id = ?
     `,
     [new Date().toISOString(), clothingId]
+  );
+}
+
+export async function createCustomClothing(input: {
+  id: string;
+  name: string;
+  category: ClothingCategory;
+  season: Season;
+  colorScheme: ColorScheme;
+  imageUrl: string;
+}) {
+  const db = await getWardrobeDatabase();
+  const createdAt = new Date().toISOString();
+  const orderRow = await db.get('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM clothes');
+  const nextOrder = Number(orderRow?.next_order ?? 0);
+
+  await db.execute(
+    `
+      INSERT INTO clothes (
+        id,
+        remote_id,
+        name,
+        category,
+        season,
+        color_scheme,
+        image_url,
+        emoji,
+        fill_color,
+        source,
+        is_in_wardrobe,
+        is_deleted,
+        sort_order,
+        sync_status,
+        created_at,
+        updated_at
+      )
+      VALUES (?, NULL, ?, ?, ?, ?, ?, NULL, NULL, 'user', 1, 0, ?, 'pending', ?, ?)
+    `,
+    [
+      input.id,
+      input.name,
+      input.category,
+      input.season,
+      input.colorScheme,
+      input.imageUrl,
+      nextOrder,
+      createdAt,
+      createdAt,
+    ]
   );
 }
 

@@ -2,11 +2,13 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { Clothing, Outfit, UserSettings } from './Wardrobe';
 import { CLOTHES, OUTFITS, STANDARD_CLOTHES } from './WardrobeData';
+import { scanClothingImage } from './ClothingScanner';
 import { syncWardrobeSnapshot } from './api/WardrobeSyncApi';
 import { initializeWardrobeDatabase } from './db/WardrobeDatabase';
 import {
   addClothingToMyWardrobe as addClothingToMyWardrobeInRepository,
   applySyncedWardrobeSnapshot,
+  createCustomClothing as createCustomClothingInRepository,
   createOutfit as createOutfitInRepository,
   deleteClothing as deleteClothingInRepository,
   deleteOutfit as deleteOutfitInRepository,
@@ -132,6 +134,22 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     syncAfterLocalChange();
   }
 
+  async function scanAndAddCustomClothing(category: Clothing['category']) {
+    await initialize();
+
+    const imagePath = await scanClothingImage();
+    await createCustomClothingInRepository({
+      id: `custom-${Date.now()}`,
+      name: `Моя вещь ${myClothes.value.length + 1}`,
+      category,
+      season: 'summer',
+      colorScheme: 'neutral',
+      imageUrl: imagePath,
+    });
+    await refreshClothes();
+    syncAfterLocalChange();
+  }
+
   async function createOutfitFromSelection(itemIds: string[]) {
     await initialize();
 
@@ -147,7 +165,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     const input = {
       id: `outfit-${Date.now()}`,
       name: `Образ ${outfits.value.length + 1}`,
-      imageUrl: firstItem.imageUrl ?? '~/assets/baseClothes/white_tshirt.jpg',
+      imageUrl: firstItem.imageUrl ?? '~/assets/baseClothes/white_tshirt.png',
       items: selectedItems.map((item) => item.id),
       style: 'casual' as const,
       season: firstItem.season,
@@ -264,6 +282,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     refreshSettings,
     setChangeSyncHandler,
     addClothingToMyWardrobe,
+    scanAndAddCustomClothing,
     createOutfitFromSelection,
     updateOutfit,
     deleteOutfit,
