@@ -31,8 +31,20 @@ export type FeedPublication = {
   items: PublicationItem[];
 };
 
+export type FeedAuthor = {
+  id: number;
+  name: string;
+  post_count: number;
+  is_following: boolean;
+  is_own_author: boolean;
+};
+
 type FeedResponse = {
   publications: FeedPublication[];
+};
+
+type AuthorsResponse = {
+  authors: FeedAuthor[];
 };
 
 function validToken(accessToken?: string | null) {
@@ -75,6 +87,15 @@ function requireUserToken(accessToken?: string | null) {
 export async function getFeed(accessToken?: string | null) {
   const result = await requestJson<FeedResponse>('/feed', {}, accessToken);
   return result.publications;
+}
+
+export async function getAuthors(accessToken?: string | null) {
+  const result = await requestJson<AuthorsResponse>(
+    '/authors',
+    {},
+    requireUserToken(accessToken)
+  );
+  return result.authors;
 }
 
 export function publishOutfit(

@@ -7,7 +7,7 @@
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="auto, *, auto">
-      <GridLayout row="0" columns="*, auto" class="header">
+      <GridLayout row="0" columns="*, auto, auto" class="header">
         <StackLayout col="0">
           <Label text="Лента" class="title" :color="COLORS.profileText" />
           <Label
@@ -18,6 +18,14 @@
         </StackLayout>
         <Button
           col="1"
+          text="Авторы"
+          class="authors-button"
+          :backgroundColor="COLORS.cardBackground"
+          :color="COLORS.profileText"
+          @tap="openAuthorsPopup"
+        />
+        <Button
+          col="2"
           text="↻"
           class="refresh-button"
           :backgroundColor="COLORS.profileButton"
@@ -153,12 +161,90 @@
           <SVGView src="~/assets/user.svg" stretch="aspectFit" class="nav-svg profile-icon" />
         </GridLayout>
       </GridLayout>
+
+      <GridLayout
+        v-if="isAuthorsPopupOpen"
+        row="0"
+        rowSpan="3"
+        class="authors-modal-overlay"
+      >
+        <StackLayout class="authors-modal-backdrop" @tap="closeAuthorsPopup" />
+        <StackLayout class="authors-modal-card" :backgroundColor="COLORS.profileBackground">
+          <GridLayout columns="*, auto" class="authors-modal-header">
+            <Label col="0" text="Авторы" class="authors-modal-title" :color="COLORS.profileText" />
+            <Button
+              col="1"
+              text="×"
+              class="authors-close-button"
+              :backgroundColor="COLORS.cardBackground"
+              :color="COLORS.profileText"
+              @tap="closeAuthorsPopup"
+            />
+          </GridLayout>
+
+          <TextField
+            v-model="authorSearch"
+            hint="Найти пользователя по имени"
+            class="authors-search"
+            :color="COLORS.profileText"
+          />
+
+          <Label
+            v-if="authorsErrorText"
+            :text="authorsErrorText"
+            class="authors-state"
+            textWrap="true"
+            :color="COLORS.profileText"
+          />
+          <Label
+            v-else-if="isAuthorsLoading"
+            text="Загружаем авторов..."
+            class="authors-state"
+            :color="COLORS.mutedText"
+          />
+          <Label
+            v-else-if="!filteredAuthors.length"
+            text="Никого не нашли"
+            class="authors-state"
+            :color="COLORS.mutedText"
+          />
+
+          <ScrollView v-else class="authors-scroll">
+            <StackLayout>
+              <GridLayout
+                v-for="author in filteredAuthors"
+                :key="author.id"
+                columns="*, auto"
+                class="author-row"
+              >
+                <StackLayout col="0">
+                  <Label :text="author.name" class="author-row-name" :color="COLORS.profileText" />
+                  <Label
+                    :text="postsCountLabel(author.post_count)"
+                    class="author-row-count"
+                    :color="COLORS.mutedText"
+                  />
+                </StackLayout>
+                <Button
+                  col="1"
+                  :text="authorButtonText(author)"
+                  class="author-follow-button"
+                  :isEnabled="canFollowAuthor(author)"
+                  :backgroundColor="author.is_following ? COLORS.navActiveBackground : COLORS.profileButton"
+                  :color="COLORS.profileText"
+                  @tap="followAuthorFromPopup(author)"
+                />
+              </GridLayout>
+            </StackLayout>
+          </ScrollView>
+        </StackLayout>
+      </GridLayout>
     </GridLayout>
   </Page>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
 import type { Clothing } from '../../../Shared/model/Wardrobe';
 import {
@@ -167,8 +253,10 @@ import {
 } from '../../../Shared/model/Wardrobe';
 import {
   countPublicationView,
+  getAuthors,
   getFeed,
   setAuthorFollowed,
+  type FeedAuthor,
   type FeedPublication,
 } from '../../../Shared/model/api/SocialApi';
 import { useAuthStore } from '../../../Shared/model/AuthStore';
@@ -188,12 +276,29 @@ const isLoading = ref(false);
 const errorText = ref('');
 const expandedId = ref<number | null>(null);
 const viewedPublicationIds = ref<Set<number>>(new Set());
+const authors = ref<FeedAuthor[]>([]);
+const authorSearch = ref('');
+const isAuthorsLoading = ref(false);
+const isAuthorsPopupOpen = ref(false);
+const authorsErrorText = ref('');
 const handleAndroidBack: AndroidBackHandler = (args) => {
+  if (isAuthorsPopupOpen.value) {
+    closeAuthorsPopup();
+  }
   args.cancel = true;
 };
 const backListener = createAndroidBackListener(handleAndroidBack);
 
 onMounted(loadFeed);
+
+const filteredAuthors = computed(() => {
+  const query = authorSearch.value.trim().toLowerCase();
+  if (!query) {
+    return authors.value;
+  }
+
+  return authors.value.filter((author) => author.name.toLowerCase().includes(query));
+});
 
 function getErrorText(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -216,6 +321,34 @@ async function loadFeed() {
     errorText.value = getErrorText(error);
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function openAuthorsPopup() {
+  if (!authStore.isServerUser) {
+    errorText.value = 'Войдите в аккаунт, чтобы смотреть авторов.';
+    return;
+  }
+
+  isAuthorsPopupOpen.value = true;
+  authorSearch.value = '';
+  await loadAuthors();
+}
+
+function closeAuthorsPopup() {
+  isAuthorsPopupOpen.value = false;
+}
+
+async function loadAuthors() {
+  isAuthorsLoading.value = true;
+  authorsErrorText.value = '';
+
+  try {
+    authors.value = await getAuthors(authStore.accessToken);
+  } catch (error) {
+    authorsErrorText.value = getErrorText(error);
+  } finally {
+    isAuthorsLoading.value = false;
   }
 }
 
@@ -283,6 +416,7 @@ async function toggleFollow(publication: FeedPublication) {
       publication.is_following
     );
     publication.is_following = result.following;
+    updateAuthorFollowState(publication.author.id, result.following);
 
     if (!result.following) {
       publications.value = publications.value.filter(
@@ -292,6 +426,67 @@ async function toggleFollow(publication: FeedPublication) {
   } catch (error) {
     errorText.value = getErrorText(error);
   }
+}
+
+async function followAuthorFromPopup(author: FeedAuthor) {
+  if (!canFollowAuthor(author)) {
+    return;
+  }
+
+  authorsErrorText.value = '';
+
+  try {
+    const result = await setAuthorFollowed(authStore.accessToken, author.id, false);
+    updateAuthorFollowState(author.id, result.following);
+    await loadFeed();
+  } catch (error) {
+    authorsErrorText.value = getErrorText(error);
+  }
+}
+
+function updateAuthorFollowState(authorId: number, isFollowing: boolean) {
+  authors.value = authors.value.map((author) => (
+    author.id === authorId ? { ...author, is_following: isFollowing } : author
+  ));
+  publications.value = publications.value.map((publication) => (
+    publication.author.id === authorId
+      ? { ...publication, is_following: isFollowing }
+      : publication
+  ));
+}
+
+function canFollowAuthor(author: FeedAuthor) {
+  return !author.is_own_author && !author.is_following;
+}
+
+function authorButtonText(author: FeedAuthor) {
+  if (author.is_own_author) {
+    return 'Это вы';
+  }
+
+  return author.is_following ? 'Подписаны' : 'Подписаться';
+}
+
+function postsCountLabel(count: number) {
+  return `${count} ${postWord(count)}`;
+}
+
+function postWord(count: number) {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) {
+    return 'постов';
+  }
+
+  if (last === 1) {
+    return 'пост';
+  }
+
+  if (last >= 2 && last <= 4) {
+    return 'поста';
+  }
+
+  return 'постов';
 }
 
 function openMyOutfits() {
@@ -329,6 +524,16 @@ function openProfile() {
   border-radius: 23;
   font-size: 24;
   padding: 0;
+  text-transform: none;
+}
+
+.authors-button {
+  height: 42;
+  min-width: 84;
+  border-radius: 21;
+  font-size: 13;
+  margin-right: 8;
+  padding: 0 14;
   text-transform: none;
 }
 
@@ -448,5 +653,87 @@ function openProfile() {
 .profile-icon {
   width: 38;
   height: 38;
+}
+
+.authors-modal-overlay {
+  vertical-align: stretch;
+}
+
+.authors-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.32);
+}
+
+.authors-modal-card {
+  margin: 28 16;
+  padding: 16;
+  border-width: 1;
+  border-color: #b87373;
+  border-radius: 16;
+  vertical-align: middle;
+}
+
+.authors-modal-header {
+  margin-bottom: 12;
+  vertical-align: middle;
+}
+
+.authors-modal-title {
+  font-size: 22;
+  font-weight: 600;
+}
+
+.authors-close-button {
+  width: 38;
+  height: 38;
+  border-radius: 19;
+  font-size: 20;
+  padding: 0;
+  text-transform: none;
+}
+
+.authors-search {
+  height: 44;
+  border-width: 1;
+  border-color: #d7b8b8;
+  border-radius: 12;
+  padding: 0 12;
+  margin-bottom: 12;
+  font-size: 14;
+}
+
+.authors-state {
+  padding: 18 8;
+  font-size: 14;
+  text-align: center;
+}
+
+.authors-scroll {
+  height: 360;
+}
+
+.author-row {
+  padding: 10 0;
+  border-bottom-width: 1;
+  border-bottom-color: #dbc6c6;
+  vertical-align: middle;
+}
+
+.author-row-name {
+  font-size: 16;
+  font-weight: 600;
+}
+
+.author-row-count {
+  font-size: 12;
+  margin-top: 3;
+}
+
+.author-follow-button {
+  width: 118;
+  height: 36;
+  border-radius: 18;
+  font-size: 12;
+  padding: 0;
+  text-transform: none;
 }
 </style>
