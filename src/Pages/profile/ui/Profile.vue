@@ -36,37 +36,18 @@
           <Label :text="displayName" class="username" :color="COLORS.profileText" />
           <Label :text="profileCaption" class="profile-caption" :color="COLORS.mutedText" />
           <StackLayout v-if="authStore.isServerUser" class="avatar-editor">
-            <TextView
-              v-model="avatarDraft"
-              hint="data:image/jpeg;base64,..."
-              class="avatar-input"
-              :backgroundColor="COLORS.cardBackground"
-              :color="COLORS.darkText"
+            <Button
+              text="Выбрать из галереи"
+              class="avatar-action"
+              :isEnabled="!isAvatarBusy"
+              :backgroundColor="COLORS.profileButton"
+              :color="COLORS.profileText"
+              @tap="chooseAvatarFromGallery"
             />
-            <GridLayout columns="*, *" class="avatar-actions">
-              <Button
-                col="0"
-                text="Сохранить свою"
-                class="avatar-action"
-                :isEnabled="!isAvatarSaving"
-                :backgroundColor="COLORS.profileButton"
-                :color="COLORS.profileText"
-                @tap="saveCustomAvatar"
-              />
-              <Button
-                col="1"
-                text="Птица"
-                class="avatar-action"
-                :isEnabled="!isAvatarSaving"
-                :backgroundColor="COLORS.profileButton"
-                :color="COLORS.profileText"
-                @tap="saveBirdAvatar"
-              />
-            </GridLayout>
             <Button
               text="Удалить аватарку"
               class="avatar-delete"
-              :isEnabled="Boolean(authStore.avatarDataUrl) && !isAvatarSaving"
+              :isEnabled="Boolean(authStore.avatarDataUrl) && !isAvatarBusy"
               :backgroundColor="COLORS.navActiveBackground"
               :color="COLORS.profileText"
               @tap="removeAvatar"
@@ -200,7 +181,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
-import { ImageSource } from '@nativescript/core';
+import { Application, ImageSource } from '@nativescript/core';
 import { storeToRefs } from 'pinia';
 import type { Outfit } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
@@ -222,9 +203,9 @@ const authStore = useAuthStore();
 const wardrobeStore = useWardrobeStore();
 const { outfits: allOutfits } = storeToRefs(wardrobeStore);
 const outfits = computed(() => allOutfits.value);
-const avatarDraft = ref('');
 const avatarStatus = ref('');
 const isAvatarSaving = ref(false);
+const isAvatarPicking = ref(false);
 const displayName = computed(() => authStore.name || authStore.email || 'Пользователь');
 const profileCaption = computed(() =>
   authStore.isGuest ? 'Гостевой аккаунт' : authStore.email || 'Аккаунт Things'
@@ -233,6 +214,7 @@ const publishButtonText = computed(() =>
   authStore.isServerUser ? 'Опубликовать образ' : 'Войдите, чтобы публиковать'
 );
 const avatarImageSource = computed(() => dataUrlToImageSource(authStore.avatarDataUrl));
+const isAvatarBusy = computed(() => isAvatarSaving.value || isAvatarPicking.value);
 const selectedOutfitId = ref<string | null>(null);
 const handleAndroidBack: AndroidBackHandler = (args) => {
   args.cancel = true;
@@ -311,19 +293,6 @@ function dataUrlToImageSource(dataUrl?: string | null) {
   }
 }
 
-function normalizeAvatarInput(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  if (trimmed.startsWith('data:image/')) {
-    return trimmed;
-  }
-
-  return `data:image/jpeg;base64,${trimmed}`;
-}
-
 async function persistAvatar(dataUrl: string) {
   const token = authStore.accessToken;
   if (!token || isAvatarSaving.value) {
@@ -336,7 +305,6 @@ async function persistAvatar(dataUrl: string) {
   try {
     const profile = await updateAvatar(token, dataUrl);
     authStore.updateStoredProfile(profile);
-    avatarDraft.value = '';
     avatarStatus.value = 'Аватарка сохранена.';
   } catch (error) {
     avatarStatus.value = error instanceof Error ? error.message : String(error);
@@ -345,24 +313,103 @@ async function persistAvatar(dataUrl: string) {
   }
 }
 
-async function saveCustomAvatar() {
-  const dataUrl = normalizeAvatarInput(avatarDraft.value);
-  if (!dataUrl) {
-    avatarStatus.value = 'Вставьте base64 аватарки.';
+function imageSourceToAvatarDataUrl(image: ImageSource) {
+  const resized = image.width > 256 || image.height > 256 ? image.resize(256) : image;
+  const base64 = resized.toBase64String('jpeg', 82);
+  if (!base64) {
+    throw new Error('Не удалось подготовить аватарку.');
+  }
+
+  return `data:image/jpeg;base64,${base64}`;
+}
+
+function pickImageFromGallery(): Promise<ImageSource | null> {
+  return new Promise((resolve, reject) => {
+    const androidApp = Application.android;
+    const activity = androidApp.foregroundActivity || androidApp.startActivity;
+
+    if (!activity) {
+      reject(new Error('Галерея сейчас недоступна.'));
+      return;
+    }
+
+    const requestCode = 44710;
+    const onResult = (args: any) => {
+      if (args.requestCode !== requestCode) {
+        return;
+      }
+
+      androidApp.off(androidApp.activityResultEvent, onResult);
+
+      if (args.resultCode !== android.app.Activity.RESULT_OK || !args.intent) {
+        resolve(null);
+        return;
+      }
+
+      const uri = args.intent.getData();
+      if (!uri) {
+        reject(new Error('Не удалось открыть выбранное изображение.'));
+        return;
+      }
+
+      let stream: java.io.InputStream | null = null;
+      try {
+        stream = activity.getContentResolver().openInputStream(uri);
+        const image = ImageSource.fromDataSync(stream);
+        if (!image) {
+          reject(new Error('Выбранный файл не похож на изображение.'));
+          return;
+        }
+
+        resolve(image);
+      } catch (error) {
+        reject(error);
+      } finally {
+        if (stream) {
+          stream.close();
+        }
+      }
+    };
+
+    androidApp.on(androidApp.activityResultEvent, onResult);
+
+    try {
+      const intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+      intent.setType('image/*');
+      intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+      intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+      activity.startActivityForResult(
+        android.content.Intent.createChooser(intent, 'Выберите аватарку'),
+        requestCode
+      );
+    } catch (error) {
+      androidApp.off(androidApp.activityResultEvent, onResult);
+      reject(error);
+    }
+  });
+}
+
+async function chooseAvatarFromGallery() {
+  if (!authStore.isServerUser || isAvatarBusy.value) {
     return;
   }
 
-  await persistAvatar(dataUrl);
-}
+  isAvatarPicking.value = true;
+  avatarStatus.value = '';
 
-async function saveBirdAvatar() {
   try {
-    const bird = ImageSource.fromFileOrResourceSync('~/assets/bird.jpg');
-    const image = bird.resize(256);
-    const base64 = image.toBase64String('jpeg', 80);
-    await persistAvatar(`data:image/jpeg;base64,${base64}`);
-  } catch {
-    avatarStatus.value = 'Не удалось подготовить аватарку-птицу.';
+    const image = await pickImageFromGallery();
+    if (!image) {
+      avatarStatus.value = 'Выбор отменен.';
+      return;
+    }
+
+    await persistAvatar(imageSourceToAvatarDataUrl(image));
+  } catch (error) {
+    avatarStatus.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    isAvatarPicking.value = false;
   }
 }
 
@@ -453,17 +500,6 @@ async function removeAvatar() {
 .avatar-editor {
   width: 336;
   margin-top: 10;
-}
-
-.avatar-input {
-  height: 70;
-  border-radius: 14;
-  padding: 8 12;
-  font-size: 12;
-}
-
-.avatar-actions {
-  margin-top: 8;
 }
 
 .avatar-action {
