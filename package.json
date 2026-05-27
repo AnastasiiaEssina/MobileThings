@@ -7,6 +7,8 @@
     "@nativescript-community/sqlite": "^3.5.1",
     "@nativescript-community/ui-svg": "^0.2.18",
     "@nativescript/core": "~8.9.1",
+    "@nativescript/firebase-core": "^5.0.2",
+    "@nativescript/firebase-messaging": "^5.0.2",
     "@xstate/vue": "^5.0.0",
     "nativescript-vue": "3.0.2",
     "pinia": "^3.0.4",

@@ -1,6 +1,7 @@
 import { createApp } from 'nativescript-vue';
 import { createPinia } from 'pinia';
 import { SVGView } from '@nativescript-community/ui-svg';
+import '@nativescript/firebase-messaging';
 import App from '../model/App.vue';
 import { useAuthStore } from '../../Shared/model/AuthStore';
 import { ensureAbortController } from '../../Shared/model/polyfills/ensureAbortController';

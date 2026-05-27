@@ -3,7 +3,7 @@
     <GridLayout rows="auto, *, auto">
       <GridLayout row="0" rows="auto, auto" class="header">
         <GridLayout row="0" columns="*, auto" class="top-bar">
-          <GridLayout col="1" class="settings-wrap">
+          <GridLayout col="1" class="settings-wrap" @tap="openSettings">
             <SVGView
               src="~/assets/settings.svg"
               stretch="aspectFit"
@@ -121,6 +121,62 @@
         :outfit-items="selectedOutfitItems"
         @close="closeOutfitDetails"
       />
+
+      <GridLayout
+        v-if="isSettingsOpen"
+        row="0"
+        rowSpan="3"
+        rows="*"
+        columns="*"
+        class="settings-overlay"
+      >
+        <GridLayout class="settings-backdrop" @tap="closeSettings" />
+
+        <StackLayout
+          class="settings-sheet"
+          :backgroundColor="COLORS.profileBackground"
+        >
+          <GridLayout columns="*, auto" class="settings-title-row">
+            <Label text="Настройки" class="settings-title" :color="COLORS.profileText" />
+            <Button
+              col="1"
+              text="x"
+              class="settings-close"
+              :color="COLORS.profileText"
+              @tap="closeSettings"
+            />
+          </GridLayout>
+
+          <GridLayout
+            columns="*, auto"
+            class="theme-row"
+            :backgroundColor="COLORS.cardBackground"
+          >
+            <StackLayout col="0" verticalAlignment="middle">
+              <Label text="Темная тема" class="setting-label" :color="COLORS.profileText" />
+              <Label
+                text="Цвета приложения"
+                class="setting-note"
+                :color="COLORS.mutedText"
+              />
+            </StackLayout>
+            <Switch
+              col="1"
+              :checked="isDarkTheme"
+              verticalAlignment="middle"
+              @checkedChange="onThemeChanged"
+            />
+          </GridLayout>
+
+          <Button
+            text="Выйти из аккаунта"
+            class="logout-button"
+            :backgroundColor="COLORS.profileButton"
+            :color="COLORS.profileText"
+            @tap="logout"
+          />
+        </StackLayout>
+      </GridLayout>
     </GridLayout>
   </Page>
 </template>
@@ -128,8 +184,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
+import type { EventData, Switch } from '@nativescript/core';
 import { storeToRefs } from 'pinia';
 import type { Outfit } from '../../../Shared/model/Wardrobe';
+import { useAuthStore } from '../../../Shared/model/AuthStore';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
 import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
@@ -138,9 +196,12 @@ import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import selectOutfitToShare from '../../selectOutfitToShare/ui/selectOutfitToShare.vue';
 
+const authStore = useAuthStore();
 const wardrobeStore = useWardrobeStore();
-const { outfits: allOutfits } = storeToRefs(wardrobeStore);
+const { outfits: allOutfits, settings } = storeToRefs(wardrobeStore);
 const outfits = computed(() => allOutfits.value);
+const isSettingsOpen = ref(false);
+const isDarkTheme = computed(() => settings.value.theme === 'dark');
 const selectedOutfitId = ref<string | null>(null);
 const selectedOutfit = computed<Outfit | null>(() => {
   if (!selectedOutfitId.value) {
@@ -171,6 +232,29 @@ function openMyClothes() {
 
 function openProfile() {
   return;
+}
+
+function openSettings() {
+  isSettingsOpen.value = true;
+}
+
+function closeSettings() {
+  isSettingsOpen.value = false;
+}
+
+async function onThemeChanged(event: EventData) {
+  const theme = (event.object as Switch).checked ? 'dark' : 'light';
+
+  if (theme === settings.value.theme) {
+    return;
+  }
+
+  await wardrobeStore.updateUserSettings({ theme });
+}
+
+function logout() {
+  closeSettings();
+  authStore.logout();
 }
 
 function openOutfitDetails(outfitId: string) {
@@ -208,6 +292,65 @@ function getOutfitItems(outfit: Outfit) {
   height: 30;
   horizontal-align: right;
   vertical-align: middle;
+}
+
+.settings-overlay {
+  z-index: 2;
+}
+
+.settings-backdrop {
+  background-color: rgba(18, 14, 15, 0.46);
+}
+
+.settings-sheet {
+  width: 338;
+  padding: 18;
+  border-radius: 18;
+  horizontal-align: center;
+  vertical-align: middle;
+}
+
+.settings-title-row {
+  height: 42;
+  margin-bottom: 14;
+}
+
+.settings-title {
+  font-size: 23;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.settings-close {
+  width: 38;
+  height: 38;
+  padding: 0;
+  border-radius: 19;
+  font-size: 18;
+  text-transform: none;
+}
+
+.theme-row {
+  height: 78;
+  padding: 14;
+  border-radius: 14;
+}
+
+.setting-label {
+  font-size: 17;
+}
+
+.setting-note {
+  margin-top: 4;
+  font-size: 13;
+}
+
+.logout-button {
+  height: 48;
+  margin-top: 18;
+  border-radius: 14;
+  font-size: 16;
+  text-transform: none;
 }
 
 .profile-block {

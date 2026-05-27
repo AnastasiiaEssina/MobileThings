@@ -16,6 +16,7 @@ import {
   updateOutfit as updateOutfitInRepository,
   updateUserSettings as updateUserSettingsInRepository,
 } from './repositories/WardrobeRepository';
+import { applyAppTheme } from '../ui/Colors';
 
 const DEFAULT_USER_SETTINGS: UserSettings = {
   id: 'default',
@@ -59,6 +60,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
   async function refreshSettings() {
     settings.value = await getUserSettings();
+    applyAppTheme(settings.value.theme);
   }
 
   async function initialize() {
