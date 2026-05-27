@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "346536183822",
+    "project_id": "mobilethings-3a21b",
+    "storage_bucket": "mobilethings-3a21b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:346536183822:android:6d2a33d1d4edacc0e8d45f",
+        "android_client_info": {
+          "package_name": "org.nativescript.MobileThings"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFu99qYDOr21xL4qeXU5ywKc25lW5JuPo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
