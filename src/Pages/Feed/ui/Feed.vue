@@ -265,6 +265,12 @@ async function toggleFollow(publication: FeedPublication) {
       publication.is_following
     );
     publication.is_following = result.following;
+
+    if (!result.following) {
+      publications.value = publications.value.filter(
+        (item) => item.author.id !== publication.author.id
+      );
+    }
   } catch (error) {
     errorText.value = getErrorText(error);
   }
