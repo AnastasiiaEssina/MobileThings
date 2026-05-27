@@ -187,6 +187,7 @@ const publications = ref<FeedPublication[]>([]);
 const isLoading = ref(false);
 const errorText = ref('');
 const expandedId = ref<number | null>(null);
+const viewedPublicationIds = ref<Set<number>>(new Set());
 const handleAndroidBack: AndroidBackHandler = (args) => {
   args.cancel = true;
 };
@@ -246,13 +247,30 @@ async function openPublication(publication: FeedPublication) {
   }
 
   expandedId.value = publication.id;
+  errorText.value = '';
+
+  if (viewedPublicationIds.value.has(publication.id)) {
+    return;
+  }
+
+  if (publication.is_own_author) {
+    markPublicationViewed(publication.id);
+    return;
+  }
 
   try {
-    const result = await countPublicationView(publication.id);
+    const result = await countPublicationView(publication.id, authStore.accessToken);
     publication.views = result.views;
+    markPublicationViewed(publication.id);
   } catch (error) {
     errorText.value = getErrorText(error);
   }
+}
+
+function markPublicationViewed(publicationId: number) {
+  const nextViewedIds = new Set(viewedPublicationIds.value);
+  nextViewedIds.add(publicationId);
+  viewedPublicationIds.value = nextViewedIds;
 }
 
 async function toggleFollow(publication: FeedPublication) {

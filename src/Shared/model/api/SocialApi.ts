@@ -104,10 +104,17 @@ export function publishOutfit(
   );
 }
 
-export async function countPublicationView(publicationId: number) {
-  return requestJson<{ views: number }>(`/publications/${publicationId}/view`, {
-    method: 'POST',
-  });
+export async function countPublicationView(
+  publicationId: number,
+  accessToken: string | null | undefined
+) {
+  return requestJson<{ views: number; counted: boolean }>(
+    `/publications/${publicationId}/view`,
+    {
+      method: 'POST',
+    },
+    requireUserToken(accessToken)
+  );
 }
 
 export async function setAuthorFollowed(
