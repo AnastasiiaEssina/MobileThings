@@ -4,6 +4,7 @@ import { SVGView } from '@nativescript-community/ui-svg';
 import App from '../model/App.vue';
 import { useAuthStore } from '../../Shared/model/AuthStore';
 import { ensureAbortController } from '../../Shared/model/polyfills/ensureAbortController';
+import { useThemeStore } from '../../Shared/model/ThemeStore';
 import { useWardrobeStore } from '../../Shared/model/WardrobeStore';
 
 ensureAbortController();
@@ -13,6 +14,9 @@ const pinia = createPinia();
 
 app.use(pinia);
 app.registerElement('SVGView', () => SVGView);
+
+const themeStore = useThemeStore(pinia);
+themeStore.initialize();
 
 async function initializeStores() {
   try {

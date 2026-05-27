@@ -8,7 +8,7 @@
     <GridLayout rows="auto, *, auto">
       <GridLayout row="0" rows="auto, auto" class="header">
         <GridLayout row="0" columns="*, auto" class="top-bar">
-          <GridLayout col="1" class="settings-wrap">
+          <GridLayout col="1" class="settings-wrap" @tap="openSettings">
             <SVGView
               src="~/assets/settings.svg"
               stretch="aspectFit"
@@ -72,13 +72,6 @@
             :backgroundColor="authStore.isServerUser ? COLORS.profileButton : COLORS.navActiveBackground"
             :color="COLORS.profileText"
             @tap="openSelectOutfitToShare"
-          />
-          <Button
-            text="Выйти"
-            class="logout-btn"
-            :backgroundColor="COLORS.navActiveBackground"
-            :color="COLORS.profileText"
-            @tap="logout"
           />
         </StackLayout>
       </GridLayout>
@@ -174,6 +167,61 @@
         :outfit-items="selectedOutfitItems"
         @close="closeOutfitDetails"
       />
+
+      <GridLayout
+        v-if="isSettingsOpen"
+        row="0"
+        rowSpan="3"
+        class="settings-modal-overlay"
+      >
+        <StackLayout class="settings-modal-backdrop" @tap="closeSettings" />
+        <StackLayout class="settings-modal-card" :backgroundColor="COLORS.profileBackground">
+          <GridLayout columns="*, auto" class="settings-modal-header">
+            <Label
+              col="0"
+              text="Настройки"
+              class="settings-modal-title"
+              :color="COLORS.profileText"
+            />
+            <Button
+              col="1"
+              text="×"
+              class="settings-close-button"
+              :backgroundColor="COLORS.cardBackground"
+              :color="COLORS.profileText"
+              @tap="closeSettings"
+            />
+          </GridLayout>
+
+          <Label text="Тема приложения" class="settings-section-title" :color="COLORS.mutedText" />
+          <GridLayout columns="*, *" class="theme-row">
+            <Button
+              col="0"
+              text="Светлая"
+              class="theme-button"
+              :backgroundColor="themeStore.theme === 'light' ? COLORS.profileButton : COLORS.cardBackground"
+              :color="COLORS.profileText"
+              @tap="setTheme('light')"
+            />
+            <Button
+              col="1"
+              text="Темная"
+              class="theme-button"
+              :backgroundColor="themeStore.theme === 'dark' ? COLORS.profileButton : COLORS.cardBackground"
+              :color="COLORS.profileText"
+              @tap="setTheme('dark')"
+            />
+          </GridLayout>
+
+          <Button
+            text="Выйти из аккаунта"
+            class="settings-logout-button"
+            :backgroundColor="COLORS.navActiveBackground"
+            :color="COLORS.profileText"
+            @tap="logout"
+          />
+        </StackLayout>
+      </GridLayout>
     </GridLayout>
   </Page>
 </template>
@@ -193,6 +241,7 @@ import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
 import { useAuthStore } from '../../../Shared/model/AuthStore';
+import { useThemeStore } from '../../../Shared/model/ThemeStore';
 import { deleteAvatar, updateAvatar } from '../../../Shared/model/api/ProfileApi';
 import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
@@ -200,12 +249,14 @@ import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import selectOutfitToShare from '../../selectOutfitToShare/ui/selectOutfitToShare.vue';
 
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 const wardrobeStore = useWardrobeStore();
 const { outfits: allOutfits } = storeToRefs(wardrobeStore);
 const outfits = computed(() => allOutfits.value);
 const avatarStatus = ref('');
 const isAvatarSaving = ref(false);
 const isAvatarPicking = ref(false);
+const isSettingsOpen = ref(false);
 const displayName = computed(() => authStore.name || authStore.email || 'Пользователь');
 const profileCaption = computed(() =>
   authStore.isGuest ? 'Гостевой аккаунт' : authStore.email || 'Аккаунт Things'
@@ -218,6 +269,11 @@ const isAvatarBusy = computed(() => isAvatarSaving.value || isAvatarPicking.valu
 const selectedOutfitId = ref<string | null>(null);
 const handleAndroidBack: AndroidBackHandler = (args) => {
   args.cancel = true;
+
+  if (isSettingsOpen.value) {
+    closeSettings();
+    return;
+  }
 
   if (selectedOutfitId.value) {
     closeOutfitDetails();
@@ -272,11 +328,24 @@ function closeOutfitDetails() {
   selectedOutfitId.value = null;
 }
 
+function openSettings() {
+  isSettingsOpen.value = true;
+}
+
+function closeSettings() {
+  isSettingsOpen.value = false;
+}
+
+function setTheme(theme: 'light' | 'dark') {
+  themeStore.applyTheme(theme);
+}
+
 function getOutfitItems(outfit: Outfit) {
   return wardrobeStore.getOutfitItems(outfit);
 }
 
 function logout() {
+  closeSettings();
   authStore.logout();
 }
 
@@ -533,15 +602,6 @@ async function removeAvatar() {
   padding: 0;
 }
 
-.logout-btn {
-  margin-top: 8;
-  width: 188;
-  height: 36;
-  border-radius: 18;
-  font-size: 14;
-  padding: 0;
-}
-
 .content {
   padding: 16 16 12 16;
 }
@@ -631,5 +691,70 @@ async function removeAvatar() {
 .profile-icon {
   width: 38;
   height: 38;
+}
+
+.settings-modal-overlay {
+  vertical-align: stretch;
+}
+
+.settings-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.32);
+}
+
+.settings-modal-card {
+  margin: 34 18;
+  padding: 16;
+  height: 300;
+  border-width: 1;
+  border-color: #b87373;
+  border-radius: 16;
+  vertical-align: middle;
+}
+
+.settings-modal-header {
+  margin-bottom: 14;
+  vertical-align: middle;
+}
+
+.settings-modal-title {
+  font-size: 22;
+  font-weight: 600;
+}
+
+.settings-close-button {
+  width: 38;
+  height: 38;
+  border-radius: 19;
+  font-size: 20;
+  padding: 0;
+  text-transform: none;
+}
+
+.settings-section-title {
+  font-size: 13;
+  margin-bottom: 8;
+}
+
+.theme-row {
+  height: 44;
+  margin-bottom: 14;
+}
+
+.theme-button {
+  height: 40;
+  border-radius: 20;
+  font-size: 14;
+  margin-right: 6;
+  margin-left: 6;
+  padding: 0;
+  text-transform: none;
+}
+
+.settings-logout-button {
+  height: 42;
+  border-radius: 21;
+  font-size: 15;
+  padding: 0;
+  text-transform: none;
 }
 </style>
