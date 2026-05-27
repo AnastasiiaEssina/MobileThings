@@ -1,5 +1,6 @@
 import { createApp } from 'nativescript-vue';
 import { createPinia } from 'pinia';
+import { watch } from 'vue';
 import { SVGView } from '@nativescript-community/ui-svg';
 import App from '../model/App.vue';
 import { useAuthStore } from '../../Shared/model/AuthStore';
@@ -16,17 +17,44 @@ app.use(pinia);
 app.registerElement('SVGView', () => SVGView);
 
 const themeStore = useThemeStore(pinia);
+const authStore = useAuthStore(pinia);
+const wardrobeStore = useWardrobeStore(pinia);
+let wardrobeSyncTimer: ReturnType<typeof setInterval> | null = null;
+
 themeStore.initialize();
+
+function syncWardrobeIfOnline() {
+  if (!authStore.accessToken || authStore.isGuest) {
+    return;
+  }
+
+  void wardrobeStore.syncWithServer(authStore.accessToken);
+}
+
+function startWardrobeSyncLoop() {
+  if (wardrobeSyncTimer) {
+    return;
+  }
+
+  wardrobeSyncTimer = setInterval(syncWardrobeIfOnline, 45_000);
+}
 
 async function initializeStores() {
   try {
-    const authStore = useAuthStore(pinia);
-    const wardrobeStore = useWardrobeStore(pinia);
     await Promise.all([authStore.initialize(), wardrobeStore.initialize()]);
+    syncWardrobeIfOnline();
+    startWardrobeSyncLoop();
   } catch (error) {
     console.error('Failed to initialize application state', error);
   }
 }
+
+watch(
+  () => authStore.accessToken,
+  () => {
+    syncWardrobeIfOnline();
+  }
+);
 
 app.start();
 void initializeStores();

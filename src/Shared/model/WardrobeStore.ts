@@ -2,12 +2,15 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { Clothing, Outfit, UserSettings } from './Wardrobe';
 import { CLOTHES, OUTFITS, STANDARD_CLOTHES } from './WardrobeData';
+import { syncWardrobeSnapshot } from './api/WardrobeSyncApi';
 import { initializeWardrobeDatabase } from './db/WardrobeDatabase';
 import {
   addClothingToMyWardrobe as addClothingToMyWardrobeInRepository,
+  applySyncedWardrobeSnapshot,
   createOutfit as createOutfitInRepository,
   deleteClothing as deleteClothingInRepository,
   deleteOutfit as deleteOutfitInRepository,
+  exportWardrobeSnapshot,
   getMyClothes,
   getOutfits,
   getStandardClothes,
@@ -39,6 +42,9 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
   const settings = ref<UserSettings>({ ...DEFAULT_USER_SETTINGS });
   const isHydrated = ref(false);
   const isLoading = ref(false);
+  const isSyncing = ref(false);
+  const lastSyncedAt = ref<string | null>(null);
+  const syncError = ref<string | null>(null);
   const error = ref<string | null>(null);
 
   let initializationPromise: Promise<void> | null = null;
@@ -200,6 +206,29 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await Promise.all([refreshClothes(), refreshOutfits()]);
   }
 
+  async function syncWithServer(accessToken?: string | null) {
+    const token = accessToken?.trim();
+    if (!token || isSyncing.value) {
+      return;
+    }
+
+    await initialize();
+    isSyncing.value = true;
+    syncError.value = null;
+
+    try {
+      const localSnapshot = await exportWardrobeSnapshot();
+      const remoteSnapshot = await syncWardrobeSnapshot(token, localSnapshot);
+      await applySyncedWardrobeSnapshot(remoteSnapshot);
+      await Promise.all([refreshClothes(), refreshOutfits(), refreshSettings()]);
+      lastSyncedAt.value = new Date().toISOString();
+    } catch (caughtError) {
+      syncError.value = getErrorMessage(caughtError);
+    } finally {
+      isSyncing.value = false;
+    }
+  }
+
   return {
     myClothes,
     standardClothes,
@@ -208,6 +237,9 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     settings,
     isHydrated,
     isLoading,
+    isSyncing,
+    lastSyncedAt,
+    syncError,
     error,
     hasData: computed(() => myClothes.value.length > 0 || outfits.value.length > 0),
     initialize,
@@ -221,6 +253,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     updateClothing,
     deleteClothing,
     updateUserSettings,
+    syncWithServer,
     getClothingById,
     getOutfitItems,
   };
