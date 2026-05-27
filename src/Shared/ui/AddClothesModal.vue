@@ -64,6 +64,15 @@
           </GridLayout>
         </GridLayout>
       </WrapLayout>
+    <StackLayout class="p-2">
+      <!-- Наша новая кнопка для запуска камеры -->
+      <Button
+        text="📷 Сканировать штрихкод"
+        class="scanner-button"
+        :backgroundColor="COLORS.profileButton"
+        :color="COLORS.profileText"
+        @tap="openBarcodeScanner"
+      />
 
       <Button
         text="Загрузить свое"
@@ -72,15 +81,19 @@
         :color="COLORS.profileText"
       />
     </StackLayout>
-  </GridLayout>
+  </StackLayout>
+</GridLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
+import { $showModal } from 'nativescript-vue';
 import type { ClothingCategory } from '../model/Wardrobe';
 import { COLORS } from './Colors';
 import { useWardrobeStore } from '../model/WardrobeStore';
+import BarcodeScannerModal from './BarcodeScannerModal.vue'; // <-- Проверьте правильность импорта
+import { Utils } from '@nativescript/core';
 
 type Category = 'all' | ClothingCategory;
 
@@ -115,6 +128,32 @@ async function addClothing(id: string) {
   await wardrobeStore.addClothingToMyWardrobe(id);
   emitClose();
 }
+
+async function openBarcodeScanner() {
+  try {
+    const scannedCode = await $showModal(BarcodeScannerModal, {
+      fullscreen: true
+    });
+
+    if (scannedCode) {
+      console.log('Успешно получен код из камеры:', scannedCode);
+      
+      // Используем точно существующий метод из строки 128
+      // Передаем отсканированный код в качестве ID новой вещи
+      await wardrobeStore.addClothingToMyWardrobe(scannedCode);
+      
+      console.log('Вещь успешно добавлена в базу данных!');
+      emitClose(); // Закрываем модальное окно добавления
+    }
+  } catch (error) {
+    console.error('Ошибка работы сканера камеры:', error);
+  }
+}
+
+
+
+
+
 
 function emitClose() {
   emit('close');
@@ -216,4 +255,15 @@ function emitClose() {
   padding: 0;
   text-transform: none;
 }
+
+.scanner-button {
+  height: 42;
+  border-radius: 21;
+  font-size: 16;
+  padding: 0;
+  margin-bottom: 10;
+  text-transform: none;
+}
+
 </style>
+
