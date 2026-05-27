@@ -1,5 +1,5 @@
 <template>
-  <Page :backgroundColor="COLORS.profileBackground">
+  <Page actionBarHidden="true" :backgroundColor="COLORS.profileBackground">
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="*, auto">

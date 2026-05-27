@@ -1,5 +1,6 @@
 <template>
   <Page
+    actionBarHidden="true"
     :backgroundColor="COLORS.profileBackground"
     @loaded="backListener.start"
     @unloaded="backListener.stop"

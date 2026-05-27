@@ -1,5 +1,5 @@
 <template>
-  <Page v-if="!isReady">
+  <Page v-if="!isReady" actionBarHidden="true">
     <ActionBar visibility="collapse" />
     <GridLayout rows="*" columns="*">
       <Label text="Загрузка..." horizontalAlignment="center" verticalAlignment="middle" />

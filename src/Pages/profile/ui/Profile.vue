@@ -1,10 +1,13 @@
 <template>
   <Page
+    actionBarHidden="true"
     class="page"
     :backgroundColor="COLORS.profileBackground"
     @loaded="backListener.start"
     @unloaded="backListener.stop"
   >
+    <ActionBar visibility="collapse" />
+
     <GridLayout rows="auto, *, auto">
       <GridLayout row="0" rows="auto, auto" class="header">
         <GridLayout row="0" columns="*, auto" class="top-bar">
@@ -48,8 +51,8 @@
               text="Удалить аватарку"
               class="avatar-delete"
               :isEnabled="Boolean(authStore.avatarDataUrl) && !isAvatarBusy"
-              :backgroundColor="COLORS.navActiveBackground"
-              :color="COLORS.profileText"
+              :backgroundColor="COLORS.dangerButton"
+              :color="COLORS.dangerText"
               @tap="removeAvatar"
             />
             <Label

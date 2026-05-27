@@ -14,9 +14,19 @@
         <ClothingPreview :item="clothing" size="lg" />
 
         <Label text="Название" class="field-label" :color="COLORS.profileText" />
-        <TextField v-model="draftName" class="field-input" />
+        <TextField
+          v-model="draftName"
+          class="field-input"
+          :backgroundColor="COLORS.cardBackground"
+          :color="COLORS.profileText"
+        />
 
-        <GridLayout rows="auto, auto, auto" columns="auto, *" class="metadata-summary">
+        <GridLayout
+          rows="auto, auto, auto"
+          columns="auto, *"
+          class="metadata-summary"
+          :backgroundColor="COLORS.cardBackground"
+        >
           <Label row="0" col="0" text="Категория" class="summary-label" :color="COLORS.profileText" />
           <Label row="0" col="1" :text="categoryLabel" class="summary-value" :color="COLORS.mutedText" />
 
@@ -116,7 +126,8 @@
             col="1"
             text="Удалить"
             class="danger-button"
-            :color="COLORS.profileText"
+            :backgroundColor="COLORS.dangerButton"
+            :color="COLORS.dangerText"
             :isEnabled="canDelete"
             :opacity="canDelete ? 1 : 0.5"
             @tap="removeClothing"
@@ -277,7 +288,6 @@ function emitClose() {
 }
 
 .field-input {
-  background-color: #ffffff;
   border-radius: 12;
 }
 
@@ -285,7 +295,6 @@ function emitClose() {
   margin-top: 14;
   padding: 10 12;
   border-radius: 12;
-  background-color: #ffffff;
 }
 
 .summary-label,
@@ -358,10 +367,6 @@ function emitClose() {
   height: 40;
   border-radius: 20;
   text-transform: none;
-}
-
-.danger-button {
-  background-color: #f1d8d8;
 }
 
 .close-button {

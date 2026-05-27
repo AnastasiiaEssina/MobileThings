@@ -11,6 +11,8 @@ export type ColorPalette = {
   profileButton: string;
   cardBackground: string;
   navActiveBackground: string;
+  dangerButton: string;
+  dangerText: string;
   darkText: string;
   mutedText: string;
 };
@@ -25,6 +27,8 @@ export const THEME_PALETTES: Record<ThemeName, ColorPalette> = {
     profileButton: '#adbdb5',
     cardBackground: '#ececec',
     navActiveBackground: '#ece8d3',
+    dangerButton: '#8f2435',
+    dangerText: '#fff7f2',
     darkText: '#222222',
     mutedText: '#4f3a3a',
   },
@@ -37,6 +41,8 @@ export const THEME_PALETTES: Record<ThemeName, ColorPalette> = {
     profileButton: '#536b61',
     cardBackground: '#3a3032',
     navActiveBackground: '#4a3d35',
+    dangerButton: '#ff8a80',
+    dangerText: '#271416',
     darkText: '#f3ece8',
     mutedText: '#ccb8b6',
   },
