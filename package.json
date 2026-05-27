@@ -7,8 +7,10 @@
     "@nativescript-community/sqlite": "^3.5.1",
     "@nativescript-community/ui-svg": "^0.2.18",
     "@nativescript/core": "~8.9.1",
+    "@nativescript/mlkit-barcode-scanning": "^3.0.4",
+    "@nativescript/mlkit-core": "^3.0.4",
     "@xstate/vue": "^5.0.0",
-    "nativescript-vue": "3.0.2",
+    "nativescript-vue": "^3.0.2",
     "pinia": "^3.0.4",
     "vue": "^3.5.31",
     "xstate": "^5.30.0"

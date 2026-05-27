@@ -7,6 +7,7 @@ import type {
   UserSettings,
 } from '../Wardrobe';
 import { DEFAULT_SETTINGS_ID, getWardrobeDatabase } from '../db/WardrobeDatabase';
+import { ClothesSyncPayload, OutfitsSyncPayload } from '../api/SyncApi';
 
 interface ClothingRow extends SqliteRow {
   id: string;
@@ -404,4 +405,56 @@ export async function updateUserSettings(patch: Partial<UserSettings>) {
       DEFAULT_SETTINGS_ID,
     ]
   );
+}
+
+/**
+ * Получить все измененные вещи, которые еще не синхронизированы
+ */
+export async function getPendingClothes(): Promise<ClothesSyncPayload[]> {
+  const db = await getWardrobeDatabase();
+  const rows = await db.select(
+    `SELECT id, remote_id, name, category, season, color_scheme, image_url, emoji, fill_color, source, is_in_wardrobe, is_deleted, sort_order, updated_at 
+     FROM clothes 
+     WHERE sync_status = 'pending'`
+  );
+  return rows as ClothesSyncPayload[];
+}
+
+/**
+ * Получить все измененные образы, которые еще не синхронизированы
+ */
+export async function getPendingOutfits(): Promise<OutfitsSyncPayload[]> {
+  const db = await getWardrobeDatabase();
+  const rows = await db.select(
+    `SELECT id, remote_id, name, style, season, color_scheme, image_url, views, is_deleted, sort_order, updated_at 
+     FROM outfits 
+     WHERE sync_status = 'pending'`
+  );
+  return rows as OutfitsSyncPayload[];
+}
+
+/**
+ * Сбросить статус 'pending' на 'synced' для успешно отправленных ID
+ */
+export async function markAsSynced(clothesIds: string[], outfitsIds: string[]) {
+  const db = await getWardrobeDatabase();
+  
+  await db.transaction(async () => {
+    if (clothesIds.length > 0) {
+      // Формируем плейсхолдеры (?, ?, ?) для безопасного IN-запроса
+      const placeholders = clothesIds.map(() => '?').join(',');
+      await db.execute(
+        `UPDATE clothes SET sync_status = 'synced' WHERE id IN (${placeholders})`,
+        clothesIds
+      );
+    }
+    
+    if (outfitsIds.length > 0) {
+      const placeholders = outfitsIds.map(() => '?').join(',');
+      await db.execute(
+        `UPDATE outfits SET sync_status = 'synced' WHERE id IN (${placeholders})`,
+        outfitsIds
+      );
+    }
+  });
 }

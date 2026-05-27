@@ -5,6 +5,7 @@ import App from '../model/App.vue';
 import { useAuthStore } from '../../Shared/model/AuthStore';
 import { ensureAbortController } from '../../Shared/model/polyfills/ensureAbortController';
 import { useWardrobeStore } from '../../Shared/model/WardrobeStore';
+import { MLKitView } from '@nativescript/mlkit-core';
 
 ensureAbortController();
 
@@ -13,6 +14,7 @@ const pinia = createPinia();
 
 app.use(pinia);
 app.registerElement('SVGView', () => SVGView);
+app.registerElement('MLKitView', () => MLKitView);
 
 async function initializeStores() {
   try {

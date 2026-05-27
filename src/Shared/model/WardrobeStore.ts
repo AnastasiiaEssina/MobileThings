@@ -4,6 +4,9 @@ import type { Clothing, Outfit, UserSettings } from './Wardrobe';
 import { CLOTHES, OUTFITS, STANDARD_CLOTHES } from './WardrobeData';
 import { initializeWardrobeDatabase } from './db/WardrobeDatabase';
 import {
+  getPendingClothes,
+  getPendingOutfits,
+  markAsSynced,
   addClothingToMyWardrobe as addClothingToMyWardrobeInRepository,
   createOutfit as createOutfitInRepository,
   deleteClothing as deleteClothingInRepository,
@@ -16,6 +19,7 @@ import {
   updateOutfit as updateOutfitInRepository,
   updateUserSettings as updateUserSettingsInRepository,
 } from './repositories/WardrobeRepository';
+import { sendWardrobeSync } from './api/SyncApi';
 
 const DEFAULT_USER_SETTINGS: UserSettings = {
   id: 'default',
@@ -200,6 +204,45 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await Promise.all([refreshClothes(), refreshOutfits()]);
   }
 
+  async function syncWardrobe(accessToken: string) {
+  await initialize(); 
+  
+    try {
+      isLoading.value = true;
+      error.value = null;
+
+      const pendingClothes = await getPendingClothes();
+      const pendingOutfits = await getPendingOutfits();
+
+      if (pendingClothes.length === 0 && pendingOutfits.length === 0) {
+        console.log('Нет данных для синхронизации.');
+        return;
+      }
+
+      const payload = {
+        clothes: pendingClothes,
+        outfits: pendingOutfits,
+      };
+
+      const response = await sendWardrobeSync(accessToken, payload);
+
+      if (response.success) {
+
+        const clothesIds = pendingClothes.map(c => c.id);
+        const outfitsIds = pendingOutfits.map(o => o.id);
+        
+        await markAsSynced(clothesIds, outfitsIds);
+        console.log('Синхронизация успешно завершена!');
+      }
+    } catch (caughtError) {
+      error.value = getErrorMessage(caughtError);
+      console.error('Ошибка синхронизации:', caughtError);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+
   return {
     myClothes,
     standardClothes,
@@ -217,6 +260,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     addClothingToMyWardrobe,
     createOutfitFromSelection,
     updateOutfit,
+    syncWardrobe,
     deleteOutfit,
     updateClothing,
     deleteClothing,
