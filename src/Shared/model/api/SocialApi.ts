@@ -89,6 +89,15 @@ export async function getFeed(accessToken?: string | null) {
   return result.publications;
 }
 
+export async function getMyPublications(accessToken?: string | null) {
+  const result = await requestJson<FeedResponse>(
+    '/users/me/publications',
+    {},
+    requireUserToken(accessToken)
+  );
+  return result.publications;
+}
+
 export async function getAuthors(accessToken?: string | null) {
   const result = await requestJson<AuthorsResponse>(
     '/authors',

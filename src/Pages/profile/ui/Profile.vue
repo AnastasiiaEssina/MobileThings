@@ -3,8 +3,8 @@
     actionBarHidden="true"
     class="page"
     :backgroundColor="COLORS.profileBackground"
-    @loaded="backListener.start"
-    @unloaded="backListener.stop"
+    @loaded="onPageLoaded"
+    @unloaded="onPageUnloaded"
   >
     <ActionBar visibility="collapse" />
 
@@ -81,16 +81,33 @@
 
       <ScrollView row="1">
         <StackLayout class="content">
+          <Label
+            text="Опубликованные образы"
+            class="section-title"
+            :color="COLORS.profileText"
+          />
+          <Label
+            v-if="profileFeedMessage"
+            :text="profileFeedMessage"
+            class="profile-feed-message"
+            :color="COLORS.mutedText"
+          />
           <GridLayout
-            v-for="item in outfits"
+            v-for="item in publishedPublications"
             :key="item.id"
             rows="*"
             columns="*"
             class="outfit-card"
             :backgroundColor="COLORS.cardBackground"
-            @tap="openOutfitDetails(item.id)"
+            @tap="openPublicationDetails(item.id)"
           >
-            <OutfitPreview :items="getOutfitItems(item)" variant="large" />
+            <OutfitPreview :items="getPublicationItems(item)" variant="large" />
+
+            <Label
+              :text="item.name"
+              class="publication-title"
+              :color="COLORS.profileText"
+            />
 
             <GridLayout class="menu-button">
               <SVGView
@@ -162,14 +179,57 @@
         </GridLayout>
       </GridLayout>
 
-      <OutfitInfoModal
+      <GridLayout
+        v-if="selectedPublication"
         row="0"
         rowSpan="3"
-        :visible="Boolean(selectedOutfit)"
-        :outfit="selectedOutfit"
-        :outfit-items="selectedOutfitItems"
-        @close="closeOutfitDetails"
-      />
+        class="publication-modal-overlay"
+      >
+        <StackLayout class="publication-modal-backdrop" @tap="closePublicationDetails" />
+        <ScrollView class="publication-modal-scroll">
+          <StackLayout class="publication-modal-card" :backgroundColor="COLORS.profileBackground">
+            <Label
+              :text="selectedPublication.name"
+              class="publication-modal-title"
+              :color="COLORS.profileText"
+            />
+            <OutfitPreview :items="selectedPublicationItems" variant="large" />
+            <GridLayout columns="auto, *" class="publication-stat-row">
+              <SVGView
+                src="~/assets/eye.svg"
+                stretch="aspectFit"
+                class="eye-icon"
+                col="0"
+              />
+              <Label
+                col="1"
+                :text="`${selectedPublication.views} просмотров`"
+                class="publication-stat-text"
+                :color="COLORS.mutedText"
+              />
+            </GridLayout>
+            <Label
+              text="Состав образа"
+              class="publication-items-title"
+              :color="COLORS.profileText"
+            />
+            <Label
+              v-for="item in selectedPublicationItems"
+              :key="item.id"
+              :text="item.name"
+              class="publication-item-name"
+              :color="COLORS.mutedText"
+            />
+            <Button
+              text="Закрыть"
+              class="publication-close-button"
+              :backgroundColor="COLORS.cardBackground"
+              :color="COLORS.profileText"
+              @tap="closePublicationDetails"
+            />
+          </StackLayout>
+        </ScrollView>
+      </GridLayout>
 
       <GridLayout
         v-if="isSettingsOpen"
@@ -230,22 +290,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
 import { Application, ImageSource } from '@nativescript/core';
-import { storeToRefs } from 'pinia';
-import type { Outfit } from '../../../Shared/model/Wardrobe';
-import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
+import type { Clothing } from '../../../Shared/model/Wardrobe';
 import {
   createAndroidBackListener,
   type AndroidBackHandler,
 } from '../../../Shared/model/AndroidBack';
-import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
 import { useAuthStore } from '../../../Shared/model/AuthStore';
 import { useThemeStore } from '../../../Shared/model/ThemeStore';
 import { deleteAvatar, updateAvatar } from '../../../Shared/model/api/ProfileApi';
+import {
+  getMyPublications,
+  type FeedPublication,
+} from '../../../Shared/model/api/SocialApi';
 import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
@@ -253,13 +314,13 @@ import selectOutfitToShare from '../../selectOutfitToShare/ui/selectOutfitToShar
 
 const authStore = useAuthStore();
 const themeStore = useThemeStore();
-const wardrobeStore = useWardrobeStore();
-const { outfits: allOutfits } = storeToRefs(wardrobeStore);
-const outfits = computed(() => allOutfits.value);
 const avatarStatus = ref('');
 const isAvatarSaving = ref(false);
 const isAvatarPicking = ref(false);
 const isSettingsOpen = ref(false);
+const publishedPublications = ref<FeedPublication[]>([]);
+const isPublishedLoading = ref(false);
+const publishedError = ref('');
 const displayName = computed(() => authStore.name || authStore.email || 'Пользователь');
 const profileCaption = computed(() =>
   authStore.isGuest ? 'Гостевой аккаунт' : authStore.email || 'Аккаунт Things'
@@ -269,7 +330,26 @@ const publishButtonText = computed(() =>
 );
 const avatarImageSource = computed(() => dataUrlToImageSource(authStore.avatarDataUrl));
 const isAvatarBusy = computed(() => isAvatarSaving.value || isAvatarPicking.value);
-const selectedOutfitId = ref<string | null>(null);
+const selectedPublicationId = ref<number | null>(null);
+const profileFeedMessage = computed(() => {
+  if (!authStore.isServerUser) {
+    return 'Войдите в аккаунт, чтобы публиковать образы и видеть их здесь.';
+  }
+
+  if (isPublishedLoading.value) {
+    return 'Загрузка опубликованных образов...';
+  }
+
+  if (publishedError.value) {
+    return publishedError.value;
+  }
+
+  if (!publishedPublications.value.length) {
+    return 'Вы пока не опубликовали ни одного образа.';
+  }
+
+  return '';
+});
 const handleAndroidBack: AndroidBackHandler = (args) => {
   args.cancel = true;
 
@@ -278,25 +358,65 @@ const handleAndroidBack: AndroidBackHandler = (args) => {
     return;
   }
 
-  if (selectedOutfitId.value) {
-    closeOutfitDetails();
+  if (selectedPublicationId.value !== null) {
+    closePublicationDetails();
   }
 };
 const backListener = createAndroidBackListener(handleAndroidBack);
-const selectedOutfit = computed<Outfit | null>(() => {
-  if (!selectedOutfitId.value) {
+const selectedPublication = computed(() => {
+  if (selectedPublicationId.value === null) {
     return null;
   }
 
-  return allOutfits.value.find((item) => item.id === selectedOutfitId.value) ?? null;
+  return publishedPublications.value.find((item) => item.id === selectedPublicationId.value) ?? null;
 });
-const selectedOutfitItems = computed(() => {
-  if (!selectedOutfit.value) {
+const selectedPublicationItems = computed(() => {
+  if (!selectedPublication.value) {
     return [];
   }
 
-  return wardrobeStore.getOutfitItems(selectedOutfit.value);
+  return getPublicationItems(selectedPublication.value);
 });
+
+onMounted(() => {
+  void loadPublishedPublications();
+});
+
+watch(
+  () => authStore.accessToken,
+  () => {
+    void loadPublishedPublications();
+  }
+);
+
+async function loadPublishedPublications() {
+  if (!authStore.isServerUser || !authStore.accessToken) {
+    publishedPublications.value = [];
+    publishedError.value = '';
+    selectedPublicationId.value = null;
+    return;
+  }
+
+  isPublishedLoading.value = true;
+  publishedError.value = '';
+
+  try {
+    publishedPublications.value = await getMyPublications(authStore.accessToken);
+  } catch (error) {
+    publishedError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    isPublishedLoading.value = false;
+  }
+}
+
+function onPageLoaded() {
+  backListener.start();
+  void loadPublishedPublications();
+}
+
+function onPageUnloaded() {
+  backListener.stop();
+}
 
 function openSelectOutfitToShare() {
   if (!authStore.isServerUser) {
@@ -323,12 +443,12 @@ function openFeed() {
   $navigateTo(Feed);
 }
 
-function openOutfitDetails(outfitId: string) {
-  selectedOutfitId.value = outfitId;
+function openPublicationDetails(publicationId: number) {
+  selectedPublicationId.value = publicationId;
 }
 
-function closeOutfitDetails() {
-  selectedOutfitId.value = null;
+function closePublicationDetails() {
+  selectedPublicationId.value = null;
 }
 
 function openSettings() {
@@ -343,8 +463,18 @@ function setTheme(theme: 'light' | 'dark') {
   themeStore.applyTheme(theme);
 }
 
-function getOutfitItems(outfit: Outfit) {
-  return wardrobeStore.getOutfitItems(outfit);
+function getPublicationItems(publication: FeedPublication): Clothing[] {
+  return publication.items.map((item, index) => ({
+    id: `publication-${publication.id}-item-${item.id || index}`,
+    name: item.name,
+    category: 'tops',
+    season: publication.season,
+    colorScheme: publication.color_scheme,
+    source: 'user',
+    imageUrl: item.image_url ?? undefined,
+    emoji: item.emoji ?? undefined,
+    fillColor: item.fill_color ?? undefined,
+  }));
 }
 
 function logout() {
@@ -609,6 +739,18 @@ async function removeAvatar() {
   padding: 16 16 12 16;
 }
 
+.section-title {
+  font-size: 18;
+  font-weight: 600;
+  margin-bottom: 10;
+}
+
+.profile-feed-message {
+  font-size: 14;
+  text-align: center;
+  margin: 18 12;
+}
+
 .outfit-card {
   width: 316;
   height: 336;
@@ -616,6 +758,14 @@ async function removeAvatar() {
   border-width: 1;
   border-color: #7d1b29;
   border-radius: 18;
+}
+
+.publication-title {
+  horizontal-align: left;
+  vertical-align: top;
+  margin: 12 48 0 12;
+  font-size: 15;
+  font-weight: 600;
 }
 
 .menu-button {
@@ -652,6 +802,64 @@ async function removeAvatar() {
   font-size: 13;
   margin-left: 6;
   vertical-align: middle;
+}
+
+.publication-modal-overlay {
+  vertical-align: stretch;
+}
+
+.publication-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.28);
+}
+
+.publication-modal-scroll {
+  margin: 22;
+  vertical-align: middle;
+}
+
+.publication-modal-card {
+  border-width: 1;
+  border-color: #b87373;
+  border-radius: 18;
+  padding: 18 14;
+}
+
+.publication-modal-title {
+  font-size: 22;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 14;
+}
+
+.publication-stat-row {
+  margin-top: 10;
+  height: 28;
+}
+
+.publication-stat-text {
+  font-size: 14;
+  margin-left: 8;
+  vertical-align: middle;
+}
+
+.publication-items-title {
+  font-size: 16;
+  font-weight: 600;
+  margin-top: 12;
+}
+
+.publication-item-name {
+  font-size: 14;
+  margin-top: 6;
+}
+
+.publication-close-button {
+  margin-top: 16;
+  height: 42;
+  border-radius: 21;
+  font-size: 15;
+  padding: 0;
+  text-transform: none;
 }
 
 .bottom-nav {
