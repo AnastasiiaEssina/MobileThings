@@ -12,6 +12,16 @@ type AuthResponse = {
   error?: string;
 };
 
+export class AuthApiError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number
+  ) {
+    super(message);
+    this.name = 'AuthApiError';
+  }
+}
+
 export type SessionPayload = {
   accessToken: string;
   refreshToken: string;
@@ -33,7 +43,7 @@ async function requestAuth(path: string, body: Record<string, string> = {}): Pro
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error(
+    throw new AuthApiError(
       `Не удалось подключиться к API (${API_BASE_URL}). Проверьте, что сервер запущен и доступен по сети.`
     );
   }
@@ -41,7 +51,7 @@ async function requestAuth(path: string, body: Record<string, string> = {}): Pro
   const data = (await response.json()) as AuthResponse;
 
   if (!response.ok) {
-    throw new Error(data.error || 'Ошибка авторизации.');
+    throw new AuthApiError(data.error || 'Ошибка авторизации.', response.status);
   }
 
   const expiresAt = new Date(Date.now() + Number(data.expires_in ?? 0) * 1000).toISOString();

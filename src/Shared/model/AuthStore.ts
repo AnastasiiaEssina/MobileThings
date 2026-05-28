@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { refreshUserSession } from './api/AuthApi';
+import { AuthApiError, refreshUserSession } from './api/AuthApi';
 import {
   clearStoredSession,
   getStoredSession,
@@ -33,6 +33,10 @@ function normalizeSession(session: SessionInput): StoredSession {
     avatarDataUrl: normalizeValue(session.avatarDataUrl),
     expiresAt: normalizeValue(session.expiresAt),
   };
+}
+
+function isInvalidStoredSessionError(error: unknown) {
+  return error instanceof AuthApiError && (error.status === 401 || error.status === 403);
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -115,11 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     if (!refreshToken.value) {
-      if (accessToken.value) {
-        logout();
-        return;
-      }
-
+      persistSession();
       isHydrated.value = true;
       return;
     }
@@ -129,8 +129,12 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const nextSession = await refreshUserSession(refreshToken.value);
       setSession(nextSession);
-    } catch {
-      logout();
+    } catch (error) {
+      if (isInvalidStoredSessionError(error) || !accessToken.value) {
+        logout();
+      } else {
+        persistSession();
+      }
     } finally {
       isRefreshing.value = false;
       isHydrated.value = true;
