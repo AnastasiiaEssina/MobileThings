@@ -2,12 +2,17 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { Clothing, Outfit, UserSettings } from './Wardrobe';
 import { CLOTHES, OUTFITS, STANDARD_CLOTHES } from './WardrobeData';
+import { scanClothingImage } from './ClothingScanner';
+import { syncWardrobeSnapshot } from './api/WardrobeSyncApi';
 import { initializeWardrobeDatabase } from './db/WardrobeDatabase';
 import {
   addClothingToMyWardrobe as addClothingToMyWardrobeInRepository,
+  applySyncedWardrobeSnapshot,
+  createCustomClothing as createCustomClothingInRepository,
   createOutfit as createOutfitInRepository,
   deleteClothing as deleteClothingInRepository,
   deleteOutfit as deleteOutfitInRepository,
+  exportWardrobeSnapshot,
   getMyClothes,
   getOutfits,
   getStandardClothes,
@@ -39,9 +44,21 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
   const settings = ref<UserSettings>({ ...DEFAULT_USER_SETTINGS });
   const isHydrated = ref(false);
   const isLoading = ref(false);
+  const isSyncing = ref(false);
+  const lastSyncedAt = ref<string | null>(null);
+  const syncError = ref<string | null>(null);
   const error = ref<string | null>(null);
 
   let initializationPromise: Promise<void> | null = null;
+  let changeSyncHandler: (() => void) | null = null;
+
+  function setChangeSyncHandler(handler: (() => void) | null) {
+    changeSyncHandler = handler;
+  }
+
+  function syncAfterLocalChange() {
+    changeSyncHandler?.();
+  }
 
   async function refreshClothes() {
     const [nextMyClothes, nextStandardClothes] = await Promise.all([
@@ -114,6 +131,23 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await initialize();
     await addClothingToMyWardrobeInRepository(clothingId);
     await refreshClothes();
+    syncAfterLocalChange();
+  }
+
+  async function scanAndAddCustomClothing(category: Clothing['category']) {
+    await initialize();
+
+    const imagePath = await scanClothingImage();
+    await createCustomClothingInRepository({
+      id: `custom-${Date.now()}`,
+      name: `Моя вещь ${myClothes.value.length + 1}`,
+      category,
+      season: 'summer',
+      colorScheme: 'neutral',
+      imageUrl: imagePath,
+    });
+    await refreshClothes();
+    syncAfterLocalChange();
   }
 
   async function createOutfitFromSelection(itemIds: string[]) {
@@ -131,7 +165,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     const input = {
       id: `outfit-${Date.now()}`,
       name: `Образ ${outfits.value.length + 1}`,
-      imageUrl: firstItem.imageUrl ?? '~/assets/baseClothes/white_tshirt.jpg',
+      imageUrl: firstItem.imageUrl ?? '~/assets/baseClothes/white_tshirt.png',
       items: selectedItems.map((item) => item.id),
       style: 'casual' as const,
       season: firstItem.season,
@@ -140,12 +174,14 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
     await createOutfitInRepository(input);
     await refreshOutfits();
+    syncAfterLocalChange();
   }
 
   async function updateUserSettings(patch: Partial<UserSettings>) {
     await initialize();
     await updateUserSettingsInRepository(patch);
     await refreshSettings();
+    syncAfterLocalChange();
   }
 
   async function updateOutfit(
@@ -160,12 +196,14 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await initialize();
     await updateOutfitInRepository(outfitId, patch);
     await refreshOutfits();
+    syncAfterLocalChange();
   }
 
   async function deleteOutfit(outfitId: string) {
     await initialize();
     await deleteOutfitInRepository(outfitId);
     await refreshOutfits();
+    syncAfterLocalChange();
   }
 
   async function updateClothing(
@@ -180,6 +218,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     await initialize();
     await updateClothingInRepository(clothingId, patch);
     await Promise.all([refreshClothes(), refreshOutfits()]);
+    syncAfterLocalChange();
   }
 
   async function deleteClothing(clothingId: string) {
@@ -198,6 +237,30 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
     await deleteClothingInRepository(clothingId);
     await Promise.all([refreshClothes(), refreshOutfits()]);
+    syncAfterLocalChange();
+  }
+
+  async function syncWithServer(accessToken?: string | null) {
+    const token = accessToken?.trim();
+    if (!token || isSyncing.value) {
+      return;
+    }
+
+    await initialize();
+    isSyncing.value = true;
+    syncError.value = null;
+
+    try {
+      const localSnapshot = await exportWardrobeSnapshot();
+      const remoteSnapshot = await syncWardrobeSnapshot(token, localSnapshot);
+      await applySyncedWardrobeSnapshot(remoteSnapshot);
+      await Promise.all([refreshClothes(), refreshOutfits(), refreshSettings()]);
+      lastSyncedAt.value = new Date().toISOString();
+    } catch (caughtError) {
+      syncError.value = getErrorMessage(caughtError);
+    } finally {
+      isSyncing.value = false;
+    }
   }
 
   return {
@@ -208,19 +271,25 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     settings,
     isHydrated,
     isLoading,
+    isSyncing,
+    lastSyncedAt,
+    syncError,
     error,
     hasData: computed(() => myClothes.value.length > 0 || outfits.value.length > 0),
     initialize,
     refreshClothes,
     refreshOutfits,
     refreshSettings,
+    setChangeSyncHandler,
     addClothingToMyWardrobe,
+    scanAndAddCustomClothing,
     createOutfitFromSelection,
     updateOutfit,
     deleteOutfit,
     updateClothing,
     deleteClothing,
     updateUserSettings,
+    syncWithServer,
     getClothingById,
     getOutfitItems,
   };

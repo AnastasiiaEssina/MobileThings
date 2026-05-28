@@ -1,37 +1,53 @@
 import { assign, createMachine, fromPromise } from 'xstate';
-import { loginUser } from '../../../Shared/model/api/AuthApi';
+import { loginUser, registerUser } from '../../../Shared/model/api/AuthApi';
+
+export type AuthMode = 'login' | 'register';
 
 type LoginContext = {
+  mode: AuthMode;
   email: string;
   password: string;
+  name: string;
   error: string;
   accessToken: string;
   refreshToken: string;
+  sessionName: string;
+  isGuest: boolean;
+  avatarDataUrl: string | null;
   expiresAt: string;
 };
 
 type LoginEvent =
-  | { type: 'SUBMIT'; email: string; password: string }
+  | { type: 'SUBMIT'; mode: AuthMode; email: string; password: string; name: string }
   | { type: 'RETRY' };
 
 type LoginInput = {
+  mode: AuthMode;
   email: string;
   password: string;
+  name: string;
 };
 
 type LoginResult = {
   accessToken: string;
   refreshToken: string;
   email: string;
+  name: string;
+  avatarDataUrl: string | null;
   expiresAt: string;
 };
 
 const initialContext: LoginContext = {
+  mode: 'login',
   email: '',
   password: '',
+  name: '',
   error: '',
   accessToken: '',
   refreshToken: '',
+  sessionName: '',
+  isGuest: false,
+  avatarDataUrl: null,
   expiresAt: '',
 };
 
@@ -40,11 +56,12 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'Не удалось выполнить вход.';
+  return 'Не удалось выполнить запрос.';
 }
 
-function validateLoginInput({ email, password }: LoginInput) {
+function validateInput({ mode, email, password, name }: LoginInput) {
   const normalizedEmail = email.trim().toLowerCase();
+  const normalizedName = name.trim();
 
   if (!normalizedEmail.includes('@') || !normalizedEmail.includes('.')) {
     throw new Error('Введите корректный email.');
@@ -54,9 +71,15 @@ function validateLoginInput({ email, password }: LoginInput) {
     throw new Error('Пароль должен быть не короче 6 символов.');
   }
 
+  if (mode === 'register' && normalizedName.length < 2) {
+    throw new Error('Введите имя для аккаунта.');
+  }
+
   return {
+    mode,
     email: normalizedEmail,
     password,
+    name: normalizedName,
   };
 }
 
@@ -76,11 +99,16 @@ export const loginMachine = createMachine(
           SUBMIT: {
             target: 'loading',
             actions: assign({
+              mode: ({ event }) => event.mode,
               email: ({ event }) => event.email.trim(),
               password: ({ event }) => event.password,
+              name: ({ event }) => event.name.trim(),
               error: () => '',
               accessToken: () => '',
               refreshToken: () => '',
+              sessionName: () => '',
+              isGuest: () => false,
+              avatarDataUrl: () => null,
               expiresAt: () => '',
             }),
           },
@@ -91,8 +119,10 @@ export const loginMachine = createMachine(
         invoke: {
           src: 'submitForm',
           input: ({ context }) => ({
+            mode: context.mode,
             email: context.email,
             password: context.password,
+            name: context.name,
           }),
           onDone: {
             target: 'success',
@@ -100,6 +130,9 @@ export const loginMachine = createMachine(
               accessToken: ({ event }) => event.output.accessToken,
               refreshToken: ({ event }) => event.output.refreshToken,
               email: ({ event }) => event.output.email,
+              sessionName: ({ event }) => event.output.name,
+              isGuest: () => false,
+              avatarDataUrl: ({ event }) => event.output.avatarDataUrl,
               expiresAt: ({ event }) => event.output.expiresAt,
               error: () => '',
             }),
@@ -110,6 +143,9 @@ export const loginMachine = createMachine(
               error: ({ event }) => getErrorMessage(event.error),
               accessToken: () => '',
               refreshToken: () => '',
+              sessionName: () => '',
+              isGuest: () => false,
+              avatarDataUrl: () => null,
               expiresAt: () => '',
             }),
           },
@@ -131,11 +167,16 @@ export const loginMachine = createMachine(
           SUBMIT: {
             target: 'loading',
             actions: assign({
+              mode: ({ event }) => event.mode,
               email: ({ event }) => event.email.trim(),
               password: ({ event }) => event.password,
+              name: ({ event }) => event.name.trim(),
               error: () => '',
               accessToken: () => '',
               refreshToken: () => '',
+              sessionName: () => '',
+              isGuest: () => false,
+              avatarDataUrl: () => null,
               expiresAt: () => '',
             }),
           },
@@ -146,7 +187,12 @@ export const loginMachine = createMachine(
   {
     actors: {
       submitForm: fromPromise(async ({ input }: { input: LoginInput }): Promise<LoginResult> => {
-        const credentials = validateLoginInput(input);
+        const credentials = validateInput(input);
+
+        if (credentials.mode === 'register') {
+          return registerUser(credentials.email, credentials.password, credentials.name);
+        }
+
         return loginUser(credentials.email, credentials.password);
       }),
     },

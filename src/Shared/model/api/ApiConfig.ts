@@ -1,0 +1,3 @@
+const DEPLOYED_API_URL = 'http://185.195.25.111:5000';
+
+export const API_BASE_URL = DEPLOYED_API_URL;

@@ -8,7 +8,7 @@ export const CLOTHES: Clothing[] = [
     season: 'summer',
     colorScheme: 'light',
     source: 'user',
-    imageUrl: '~/assets/baseClothes/white_tshirt.jpg',
+    imageUrl: '~/assets/baseClothes/white_tshirt.png',
   },
   {
     id: 'scarf-blue',
@@ -17,7 +17,7 @@ export const CLOTHES: Clothing[] = [
     season: 'autumn',
     colorScheme: 'bright',
     source: 'user',
-    imageUrl: '~/assets/baseClothes/scarf_pattern.jpg',
+    imageUrl: '~/assets/baseClothes/scarf_pattern.png',
   },
   {
     id: 'scarf-red',
@@ -44,7 +44,7 @@ export const CLOTHES: Clothing[] = [
     season: 'summer',
     colorScheme: 'dark',
     source: 'user',
-    imageUrl: '~/assets/baseClothes/blue_shirt.jpeg',
+    imageUrl: '~/assets/baseClothes/blue_shirt.png',
   },
   {
     id: 'shirt-yellow',
@@ -53,7 +53,7 @@ export const CLOTHES: Clothing[] = [
     season: 'winter',
     colorScheme: 'neutral',
     source: 'user',
-    imageUrl: '~/assets/baseClothes/gloves.jpg',
+    imageUrl: '~/assets/baseClothes/gloves.png',
   },
   {
     id: 'jeans-blue',
@@ -74,7 +74,7 @@ export const STANDARD_CLOTHES: Clothing[] = [
     season: 'summer',
     colorScheme: 'light',
     source: 'standard',
-    imageUrl: '~/assets/baseClothes/white_tshirt.jpg',
+    imageUrl: '~/assets/baseClothes/white_tshirt.png',
   },
   {
     id: 'standard-pants-white',
@@ -92,7 +92,7 @@ export const STANDARD_CLOTHES: Clothing[] = [
     season: 'autumn',
     colorScheme: 'dark',
     source: 'standard',
-    imageUrl: '~/assets/baseClothes/basic_trousers.jpg',
+    imageUrl: '~/assets/baseClothes/basic_trousers.png',
   },
   {
     id: 'standard-shirt-folded',
@@ -101,7 +101,7 @@ export const STANDARD_CLOTHES: Clothing[] = [
     season: 'spring',
     colorScheme: 'bright',
     source: 'standard',
-    imageUrl: '~/assets/baseClothes/dress_shirt.jpg',
+    imageUrl: '~/assets/baseClothes/dress_shirt.png',
   },
   {
     id: 'standard-shirt-blue',
@@ -110,7 +110,7 @@ export const STANDARD_CLOTHES: Clothing[] = [
     season: 'summer',
     colorScheme: 'dark',
     source: 'standard',
-    imageUrl: '~/assets/baseClothes/blue_shirt.jpeg',
+    imageUrl: '~/assets/baseClothes/blue_shirt.png',
   },
   {
     id: 'standard-bag',
@@ -119,7 +119,7 @@ export const STANDARD_CLOTHES: Clothing[] = [
     season: 'winter',
     colorScheme: 'light',
     source: 'standard',
-    imageUrl: '~/assets/baseClothes/white_sweater.jpg',
+    imageUrl: '~/assets/baseClothes/white_sweater.png',
   },
   {
     id: 'standard-boots-black',
@@ -137,7 +137,7 @@ export const STANDARD_CLOTHES: Clothing[] = [
     season: 'spring',
     colorScheme: 'dark',
     source: 'standard',
-    imageUrl: '~/assets/baseClothes/sneakers_black.jpg',
+    imageUrl: '~/assets/baseClothes/sneakers_black.png',
   },
   {
     id: 'standard-gloves-sport',
@@ -146,7 +146,7 @@ export const STANDARD_CLOTHES: Clothing[] = [
     season: 'winter',
     colorScheme: 'neutral',
     source: 'standard',
-    imageUrl: '~/assets/baseClothes/gloves.jpg',
+    imageUrl: '~/assets/baseClothes/gloves.png',
   },
   {
     id: 'standard-scarf-pattern',
@@ -155,7 +155,7 @@ export const STANDARD_CLOTHES: Clothing[] = [
     season: 'autumn',
     colorScheme: 'bright',
     source: 'standard',
-    imageUrl: '~/assets/baseClothes/scarf_pattern.jpg',
+    imageUrl: '~/assets/baseClothes/scarf_pattern.png',
   },
   {
     id: 'standard-scarf-red',
@@ -176,7 +176,7 @@ export const OUTFITS: Outfit[] = [
     style: 'casual',
     season: 'spring',
     colorScheme: 'dark',
-    imageUrl: '~/assets/baseClothes/white_tshirt.jpg',
+    imageUrl: '~/assets/baseClothes/white_tshirt.png',
     views: 124,
   },
   {
@@ -186,7 +186,7 @@ export const OUTFITS: Outfit[] = [
     style: 'casual',
     season: 'autumn',
     colorScheme: 'neutral',
-    imageUrl: '~/assets/baseClothes/white_sweater.jpg',
+    imageUrl: '~/assets/baseClothes/white_sweater.png',
     views: 98,
   },
   {
@@ -196,7 +196,7 @@ export const OUTFITS: Outfit[] = [
     style: 'sport',
     season: 'spring',
     colorScheme: 'dark',
-    imageUrl: '~/assets/baseClothes/sneakers_black.jpg',
+    imageUrl: '~/assets/baseClothes/sneakers_black.png',
     views: 76,
   },
   {
@@ -206,7 +206,7 @@ export const OUTFITS: Outfit[] = [
     style: 'business',
     season: 'autumn',
     colorScheme: 'bright',
-    imageUrl: '~/assets/baseClothes/dress_shirt.jpg',
+    imageUrl: '~/assets/baseClothes/dress_shirt.png',
     views: 64,
   },
 ];

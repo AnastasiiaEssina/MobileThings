@@ -1,5 +1,10 @@
 <template>
-  <Page :backgroundColor="COLORS.profileBackground">
+  <Page
+    actionBarHidden="true"
+    :backgroundColor="COLORS.profileBackground"
+    @loaded="backListener.start"
+    @unloaded="backListener.stop"
+  >
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="auto, auto, auto, auto, *, auto">
@@ -120,7 +125,7 @@
           />
         </GridLayout>
 
-        <GridLayout col="2" class="nav-item">
+        <GridLayout col="2" class="nav-item" @tap="openFeed">
           <SVGView
             src="~/assets/thumb-up.svg"
             stretch="aspectFit"
@@ -158,10 +163,15 @@ import { COLORS } from '../../../Shared/ui/Colors';
 import OutfitInfoModal from '../../../Shared/ui/OutfitInfoModal.vue';
 import OutfitPreview from '../../../Shared/ui/OutfitPreview.vue';
 import CreateOutfit from '../../CreateOutfit/ui/CreateOutfit.vue';
+import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import { outfitsMachine } from '../model/Machine';
 import Profile from '../../profile/ui/Profile.vue';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
+import {
+  createAndroidBackListener,
+  type AndroidBackHandler,
+} from '../../../Shared/model/AndroidBack';
 import {
   COLOR_SCHEME_VALUES,
   OUTFIT_STYLE_VALUES,
@@ -205,6 +215,14 @@ const wardrobeStore = useWardrobeStore();
 const { outfits } = storeToRefs(wardrobeStore);
 const activeFilter = ref<FilterKey | null>(null);
 const selectedOutfitId = ref<string | null>(null);
+const handleAndroidBack: AndroidBackHandler = (args) => {
+  args.cancel = true;
+
+  if (selectedOutfitId.value) {
+    closeOutfitDetails();
+  }
+};
+const backListener = createAndroidBackListener(handleAndroidBack);
 
 onMounted(() => {
   send({ type: 'FETCH_OUTFITS' });
@@ -315,6 +333,10 @@ function openMyClothes() {
 
 function openProfile() {
   $navigateTo(Profile);
+}
+
+function openFeed() {
+  $navigateTo(Feed);
 }
 </script>
 

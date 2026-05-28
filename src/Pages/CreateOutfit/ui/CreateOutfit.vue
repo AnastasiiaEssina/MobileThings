@@ -1,5 +1,10 @@
 <template>
-  <Page :backgroundColor="COLORS.profileBackground">
+  <Page
+    actionBarHidden="true"
+    :backgroundColor="COLORS.profileBackground"
+    @loaded="backListener.start"
+    @unloaded="backListener.stop"
+  >
     <ActionBar visibility="collapse" />
 
     <GridLayout rows="*, auto">
@@ -148,7 +153,7 @@
           />
         </GridLayout>
 
-        <GridLayout col="2" class="nav-item">
+        <GridLayout col="2" class="nav-item" @tap="openFeed">
           <SVGView
             src="~/assets/thumb-up.svg"
             stretch="aspectFit"
@@ -181,14 +186,28 @@ import { $navigateBack, $navigateTo } from 'nativescript-vue';
 import { storeToRefs } from 'pinia';
 import type { Clothing } from '../../../Shared/model/Wardrobe';
 import { useWardrobeStore } from '../../../Shared/model/WardrobeStore';
+import {
+  createAndroidBackListener,
+  type AndroidBackHandler,
+} from '../../../Shared/model/AndroidBack';
 import AddClothesModal from '../../../Shared/ui/AddClothesModal.vue';
 import { COLORS } from '../../../Shared/ui/Colors';
+import Feed from '../../Feed/ui/Feed.vue';
 import MyClothes from '../../MyClothes/ui/MyClothes.vue';
 import MyOutfits from '../../MyOutfits/ui/MyOutfits.vue';
 import Profile from '../../profile/ui/Profile.vue';
 
 const selectedClothingIds = ref<string[]>([]);
 const showAddClothesModal = ref(false);
+const handleAndroidBack: AndroidBackHandler = (args) => {
+  if (!showAddClothesModal.value) {
+    return;
+  }
+
+  args.cancel = true;
+  showAddClothesModal.value = false;
+};
+const backListener = createAndroidBackListener(handleAndroidBack);
 const wardrobeStore = useWardrobeStore();
 const { myClothes, standardClothes } = storeToRefs(wardrobeStore);
 
@@ -247,6 +266,10 @@ function openMyClothes() {
 
 function openProfile() {
   $navigateTo(Profile);
+}
+
+function openFeed() {
+  $navigateTo(Feed);
 }
 </script>
 

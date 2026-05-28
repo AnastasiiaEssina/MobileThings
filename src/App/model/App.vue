@@ -1,13 +1,13 @@
 <template>
-  <Frame>
-    <Page v-if="!isReady">
-      <ActionBar visibility="collapse" />
-      <GridLayout rows="*" columns="*">
-        <Label text="Загрузка..." horizontalAlignment="center" verticalAlignment="middle" />
-      </GridLayout>
-    </Page>
+  <Page v-if="!isReady" actionBarHidden="true">
+    <ActionBar visibility="collapse" />
+    <GridLayout rows="*" columns="*">
+      <Label text="Загрузка..." horizontalAlignment="center" verticalAlignment="middle" />
+    </GridLayout>
+  </Page>
 
-    <Login v-else-if="!isAuthenticated" />
+  <Frame v-else>
+    <Login v-if="!isAuthenticated" />
     <MyOutfits v-else />
   </Frame>
 </template>
