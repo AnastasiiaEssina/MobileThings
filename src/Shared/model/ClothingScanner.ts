@@ -1,6 +1,6 @@
 import { Folder, ImageSource, isAndroid, knownFolders, path } from '@nativescript/core';
 import { fromNativeSource } from '@nativescript/core/image-source';
-import { isAvailable, requestPermissions, takePicture } from '@nativescript/camera';
+import { isAvailable, requestCameraPermissions, takePicture } from '@nativescript/camera';
 
 declare const android: any;
 
@@ -216,7 +216,7 @@ export async function scanClothingImage() {
     throw new Error('Камера недоступна на этом устройстве.');
   }
 
-  const permissions = await requestPermissions();
+  const permissions = await requestCameraPermissions();
   if (!permissions.Success) {
     throw new Error('Разрешите доступ к камере, чтобы добавить вещь.');
   }
