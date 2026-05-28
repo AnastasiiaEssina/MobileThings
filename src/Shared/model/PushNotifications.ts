@@ -38,7 +38,7 @@ function ensureFeedNotificationChannel() {
     'Лента',
     android.app.NotificationManager.IMPORTANCE_DEFAULT
   );
-  channel.setDescription('Новые образы авторов, на которых вы подписаны');
+  channel.setDescription('Новые посты авторов, на которых вы подписаны');
 
   const manager = context.getSystemService(
     android.content.Context.NOTIFICATION_SERVICE
